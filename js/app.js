@@ -99,6 +99,7 @@ function gymTracker() {
       weekTotal: 7,
       cardioMinutes: 245,
       avgMood: 7.8,
+      weekStart: null,
     },
     
     // Workouts - будет заполнено в init()
@@ -158,6 +159,11 @@ function gymTracker() {
         'Storage': typeof Storage !== 'undefined'
       };
       console.table(checks);
+      Object.entries(checks).forEach(([name, loaded]) => {
+        if (!loaded) {
+          console.error(`❌ ${name} не загружен! Проверь порядок скриптов.`);
+        }
+      });
       
       // Загрузка данных тренировок
       this.workouts = getWorkoutTemplates();
@@ -238,17 +244,11 @@ function gymTracker() {
       }
       
       try {
-        // Создаём копию данных тренировки
-        const workoutData = this.workouts[key];
-        
-        this.currentWorkout = {
-          key: key,
-          name: workoutData.name,
-          emoji: workoutData.emoji,
-          gradient: workoutData.gradient,
-          cardio: workoutData.cardio,
-          exercises: workoutData.exercises.map(ex => ({ ...ex })) // Копируем упражнения
-        };
+        // Глубокое копирование (DATA_FLOW: JSON.parse/stringify)
+        this.currentWorkout = JSON.parse(JSON.stringify({
+          ...this.workouts[key],
+          key: key
+        }));
         
         console.log('✓ currentWorkout set:', this.currentWorkout.name);
         console.log('  exercises:', this.currentWorkout.exercises.length);
@@ -390,6 +390,7 @@ function gymTracker() {
     },
     
     updateStats(workout) {
+      this.stats.weekStart = this.getWeekStart();
       this.stats.weekCompleted = Math.min(7, this.stats.weekCompleted + 1);
       
       if (workout.cardio?.duration) {
@@ -424,11 +425,74 @@ function gymTracker() {
         this.stats = { ...this.stats, ...savedStats };
       }
       
+      // Сброс недели при смене календарной недели
+      const currentWeekStart = this.getWeekStart();
+      if (this.stats.weekStart && this.stats.weekStart !== currentWeekStart) {
+        this.stats.weekCompleted = 0;
+        this.stats.cardioMinutes = 0;
+        this.stats.weekStart = currentWeekStart;
+        this.recalculateWeekStats();
+        if (typeof Storage !== 'undefined' && Storage.saveStats) {
+          Storage.saveStats(this.stats);
+        }
+      }
+      
       // Загрузка последних тренировок
       const workouts = Storage.getWorkouts ? Storage.getWorkouts() : [];
       this.recentWorkouts = workouts.slice(0, 5);
       
+      // Обновление lastWeight из истории
+      this.loadLastWeights();
+      
       console.log('  recent workouts:', this.recentWorkouts.length);
+    },
+    
+    getWeekStart() {
+      const d = new Date();
+      const day = d.getDay();
+      const diff = day === 0 ? -6 : 1 - day;
+      const monday = new Date(d.getTime() + diff * 86400000);
+      const y = monday.getFullYear();
+      const m = String(monday.getMonth() + 1).padStart(2, '0');
+      const dayNum = String(monday.getDate()).padStart(2, '0');
+      return `${y}-${m}-${dayNum}`;
+    },
+    
+    recalculateWeekStats() {
+      const start = new Date(this.stats.weekStart + 'T00:00:00');
+      const end = new Date(start.getTime() + 7 * 86400000);
+      const workouts = Storage.getWorkouts ? Storage.getWorkouts() : [];
+      let completed = 0;
+      let cardioMins = 0;
+      for (const w of workouts) {
+        const wDate = new Date(w.dateISO || w.date);
+        if (wDate >= start && wDate < end) {
+          completed++;
+          cardioMins += w.cardio?.duration || 0;
+        }
+      }
+      this.stats.weekCompleted = Math.min(7, completed);
+      this.stats.cardioMinutes = cardioMins;
+    },
+    
+    loadLastWeights() {
+      const workouts = Storage.getWorkouts ? Storage.getWorkouts() : [];
+      if (!this.workouts || !Object.keys(this.workouts).length) return;
+      
+      Object.keys(this.workouts).forEach(workoutKey => {
+        const workoutTemplate = this.workouts[workoutKey];
+        if (!workoutTemplate?.exercises) return;
+        
+        workoutTemplate.exercises.forEach(exercise => {
+          for (const w of workouts) {
+            const lastSet = w.sets?.find(s => s.exerciseId === exercise.id);
+            if (lastSet) {
+              exercise.lastWeight = lastSet.weight;
+              break;
+            }
+          }
+        });
+      });
     },
     
     // ===== HELPERS =====

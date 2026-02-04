@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gymbroPWA-v4';
+const CACHE_NAME = 'gymbroPWA-v5';
 const urlsToCache = [
   './',
   './index.html',

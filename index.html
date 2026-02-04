@@ -4,8 +4,13 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="theme-color" content="#111827">
-  <!-- Base URL для GitHub Pages. Для локальной разработки можно закомментировать -->
-  <base href="/GymbroPWA/">
+  <script>
+    if (location.hostname.includes('github.io')) {
+      var base = document.createElement('base');
+      base.href = '/GymbroPWA/';
+      document.head.insertBefore(base, document.head.firstChild);
+    }
+  </script>
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   
@@ -48,7 +53,8 @@
 <body class="bg-gray-900 text-white min-h-screen" x-data="gymTracker()" x-init="init()">
 
   <!-- ========== СТРАНИЦА: DASHBOARD ========== -->
-  <div x-show="page === 'dashboard'" x-cloak class="min-h-screen p-4 pb-24">
+  <template x-if="page === 'dashboard'">
+  <div class="min-h-screen p-4 pb-24">
     
     <!-- Header -->
     <div class="flex justify-between items-center mb-6">
@@ -179,9 +185,11 @@
       </div>
     </div>
   </div>
+  </template>
 
   <!-- ========== СТРАНИЦА: SELECT WORKOUT ========== -->
-  <div x-show="page === 'select-workout'" x-cloak class="min-h-screen p-4">
+  <template x-if="page === 'select-workout'">
+  <div class="min-h-screen p-4">
     
     <!-- Header -->
     <div class="flex items-center gap-3 mb-6">
@@ -238,9 +246,11 @@
       </button>
     </div>
   </div>
+  </template>
 
   <!-- ========== СТРАНИЦА: WORKOUT ========== -->
-  <div x-show="page === 'workout'" x-cloak class="min-h-screen pb-32">
+  <template x-if="page === 'workout'">
+  <div class="min-h-screen pb-32">
     
     <!-- Header -->
     <div 
@@ -429,9 +439,11 @@
       </div>
     </div>
   </div>
+  </template>
 
   <!-- ========== СТРАНИЦА: CARDIO ========== -->
-  <div x-show="page === 'cardio'" x-cloak class="min-h-screen p-4">
+  <template x-if="page === 'cardio'">
+  <div class="min-h-screen p-4">
     
     <!-- Header -->
     <div class="flex items-center gap-3 mb-6">
@@ -525,9 +537,11 @@
       x-text="isCardioOnly ? 'Завершить кардио' : 'Далее →'"
     ></button>
   </div>
+  </template>
 
   <!-- ========== СТРАНИЦА: COMPLETE ========== -->
-  <div x-show="page === 'complete'" x-cloak class="min-h-screen p-4">
+  <template x-if="page === 'complete'">
+  <div class="min-h-screen p-4">
     
     <!-- Success Header -->
     <div class="text-center mb-6">
@@ -594,6 +608,7 @@
       Сохранить тренировку
     </button>
   </div>
+  </template>
 
   <!-- Scripts - ПОРЯДОК ВАЖЕН! -->
   <script src="./js/data.js"></script>
