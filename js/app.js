@@ -24,6 +24,7 @@ function gymTracker() {
       weekTotal: 7,
       cardioMinutes: 245,
       avgMood: 7.8,
+      weekStart: null, // ISO date of Monday (YYYY-MM-DD) for weekly reset
     },
     
     // Workouts data
@@ -120,9 +121,9 @@ function gymTracker() {
       this.selectedAlt = null;
       this.showAlternatives = false;
       
-      // Set initial weight/reps from first exercise
+      // Set initial weight/reps from first exercise (?? for 0 in planks)
       const firstEx = this.currentWorkout.exercises[0];
-      this.currentWeight = firstEx.lastWeight || 20;
+      this.currentWeight = firstEx.lastWeight ?? 20;
       this.currentReps = typeof firstEx.reps === 'number' ? firstEx.reps : 12;
       
       this.page = 'workout';
@@ -152,9 +153,9 @@ function gymTracker() {
         this.selectedAlt = null;
         this.showAlternatives = false;
         
-        // Load next exercise defaults
+        // Load next exercise defaults (?? for 0 in planks)
         const nextEx = this.currentExercise;
-        this.currentWeight = nextEx.lastWeight || this.currentWeight;
+        this.currentWeight = nextEx.lastWeight ?? this.currentWeight;
         this.currentReps = typeof nextEx.reps === 'number' ? nextEx.reps : 12;
       } else {
         // All exercises done, go to cardio
@@ -171,7 +172,7 @@ function gymTracker() {
         this.showAlternatives = false;
         
         const prevEx = this.currentExercise;
-        this.currentWeight = prevEx.lastWeight || this.currentWeight;
+        this.currentWeight = prevEx.lastWeight ?? this.currentWeight;
         this.currentReps = typeof prevEx.reps === 'number' ? prevEx.reps : 12;
       }
     },
@@ -215,7 +216,8 @@ function gymTracker() {
     },
     
     updateStats(workout) {
-      // Update streak
+      const monday = this.getWeekStart();
+      this.stats.weekStart = monday;
       this.stats.weekCompleted = Math.min(7, this.stats.weekCompleted + 1);
       
       // Update cardio minutes
@@ -234,6 +236,17 @@ function gymTracker() {
       Storage.saveStats(this.stats);
     },
     
+    getWeekStart() {
+      const d = new Date();
+      const day = d.getDay();
+      const diff = day === 0 ? -6 : 1 - day;
+      const monday = new Date(d.getTime() + diff * 86400000);
+      const y = monday.getFullYear();
+      const m = String(monday.getMonth() + 1).padStart(2, '0');
+      const dayNum = String(monday.getDate()).padStart(2, '0');
+      return `${y}-${m}-${dayNum}`;
+    },
+    
     loadData() {
       // Load stats
       const savedStats = Storage.getStats();
@@ -241,11 +254,38 @@ function gymTracker() {
         this.stats = { ...this.stats, ...savedStats };
       }
       
+      // Reset week stats if new week started
+      const currentWeekStart = this.getWeekStart();
+      if (this.stats.weekStart && this.stats.weekStart !== currentWeekStart) {
+        this.stats.weekCompleted = 0;
+        this.stats.cardioMinutes = 0;
+        this.stats.weekStart = currentWeekStart;
+        this.recalculateWeekStats();
+        Storage.saveStats(this.stats);
+      }
+      
       // Load recent workouts
       this.recentWorkouts = Storage.getWorkouts().slice(0, 5);
       
       // Load last weights for exercises
       this.loadLastWeights();
+    },
+    
+    recalculateWeekStats() {
+      const start = new Date(this.stats.weekStart + 'T00:00:00');
+      const end = new Date(start.getTime() + 7 * 86400000);
+      const workouts = Storage.getWorkouts();
+      let completed = 0;
+      let cardioMins = 0;
+      for (const w of workouts) {
+        const wDate = new Date(w.dateISO || w.date);
+        if (wDate >= start && wDate < end) {
+          completed++;
+          cardioMins += w.cardio?.duration || 0;
+        }
+      }
+      this.stats.weekCompleted = Math.min(7, completed);
+      this.stats.cardioMinutes = cardioMins;
     },
     
     loadLastWeights() {

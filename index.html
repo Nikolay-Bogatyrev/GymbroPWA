@@ -43,7 +43,7 @@
   <!-- Custom CSS -->
   <link rel="stylesheet" href="css/custom.css">
 </head>
-<body class="bg-gray-900 text-white min-h-screen" x-data="gymTracker()">
+<body class="bg-gray-900 text-white min-h-screen" x-data="gymTracker()" x-init="init()">
 
   <!-- ========== СТРАНИЦА: DASHBOARD ========== -->
   <div x-show="page === 'dashboard'" x-cloak class="min-h-screen p-4 pb-24">
@@ -99,7 +99,7 @@
         </div>
         <div class="text-center">
           <p class="text-gray-400">Настроение</p>
-          <p class="font-semibold text-green-400">⌀ <span x-text="stats.avgMood.toFixed(1)"></span></p>
+          <p class="font-semibold text-green-400">⌀ <span x-text="(stats.avgMood ?? 0).toFixed(1)"></span></p>
         </div>
       </div>
     </div>
@@ -133,6 +133,7 @@
 
     <!-- Start Workout Button -->
     <button
+      type="button"
       @click="page = 'select-workout'"
       class="w-full bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl p-5 mb-4 flex items-center justify-between shadow-lg shadow-blue-500/20 active:scale-[0.98] transition-transform"
     >
@@ -240,7 +241,7 @@
       :class="currentWorkout?.gradient || 'bg-gradient-to-r from-blue-500 to-blue-600'"
     >
       <div class="flex items-center justify-between mb-2">
-        <button @click="page = 'select-workout'" class="p-2 hover:bg-white/20 rounded-lg">
+        <button type="button" @click="page = 'select-workout'" class="p-2 hover:bg-white/20 rounded-lg">
           <i data-lucide="chevron-left" class="w-6 h-6"></i>
         </button>
         <div class="text-center">
@@ -250,7 +251,7 @@
             <span x-text="currentWorkout?.exercises.length"></span>
           </p>
         </div>
-        <button @click="page = 'complete'" class="p-2 hover:bg-white/20 rounded-lg text-sm">
+        <button type="button" @click="page = 'complete'" class="p-2 hover:bg-white/20 rounded-lg text-sm">
           Завершить
         </button>
       </div>
@@ -287,7 +288,8 @@
         </div>
 
         <!-- Alternatives Toggle -->
-        <button 
+        <button
+          type="button"
           @click="showAlternatives = !showAlternatives"
           class="w-full text-left text-sm text-gray-400 flex items-center gap-2 mb-2"
         >
@@ -299,6 +301,7 @@
         <div x-show="showAlternatives" x-transition class="space-y-2 mb-4">
           <template x-for="(alt, i) in currentExercise?.alts" :key="i">
             <button
+              type="button"
               @click="selectedAlt = (selectedAlt === alt ? null : alt); showAlternatives = false"
               class="w-full text-left p-2 rounded-lg text-sm transition-colors"
               :class="selectedAlt === alt ? 'bg-blue-500/30 border border-blue-500' : 'bg-gray-700'"
@@ -306,6 +309,7 @@
             ></button>
           </template>
           <button
+            type="button"
             x-show="selectedAlt"
             @click="selectedAlt = null"
             class="w-full text-left p-2 rounded-lg text-sm bg-gray-700"
@@ -339,7 +343,8 @@
         <div class="mb-6">
           <p class="text-sm text-gray-400 text-center mb-2">Вес (кг)</p>
           <div class="flex items-center justify-center gap-4">
-            <button 
+            <button
+              type="button"
               @click="currentWeight = Math.max(0, currentWeight - 2.5)"
               class="w-14 h-14 bg-gray-700 rounded-xl flex items-center justify-center active:bg-gray-600"
             >
@@ -348,7 +353,8 @@
             <div class="w-24 text-center">
               <p class="text-4xl font-bold" x-text="currentWeight"></p>
             </div>
-            <button 
+            <button
+              type="button"
               @click="currentWeight += 2.5"
               class="w-14 h-14 bg-gray-700 rounded-xl flex items-center justify-center active:bg-gray-600"
             >
@@ -361,7 +367,8 @@
         <div class="mb-6">
           <p class="text-sm text-gray-400 text-center mb-2">Повторения</p>
           <div class="flex items-center justify-center gap-4">
-            <button 
+            <button
+              type="button"
               @click="currentReps = Math.max(1, currentReps - 1)"
               class="w-14 h-14 bg-gray-700 rounded-xl flex items-center justify-center active:bg-gray-600"
             >
@@ -370,7 +377,8 @@
             <div class="w-24 text-center">
               <p class="text-4xl font-bold" x-text="currentReps"></p>
             </div>
-            <button 
+            <button
+              type="button"
               @click="currentReps++"
               class="w-14 h-14 bg-gray-700 rounded-xl flex items-center justify-center active:bg-gray-600"
             >
@@ -381,6 +389,7 @@
 
         <!-- Record Button -->
         <button
+          type="button"
           @click="recordSet()"
           class="w-full bg-green-500 hover:bg-green-600 rounded-xl py-4 font-bold text-lg flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
         >
@@ -394,6 +403,7 @@
     <div class="fixed bottom-0 left-0 right-0 bg-gray-800 border-t border-gray-700 p-4">
       <div class="flex gap-4 max-w-md mx-auto">
         <button
+          type="button"
           :disabled="currentExerciseIndex === 0"
           @click="prevExercise()"
           class="flex-1 bg-gray-700 rounded-xl py-3 font-semibold disabled:opacity-50 flex items-center justify-center gap-2"
@@ -402,6 +412,7 @@
           Назад
         </button>
         <button
+          type="button"
           @click="nextExercise()"
           class="flex-1 bg-blue-500 rounded-xl py-3 font-semibold flex items-center justify-center gap-2"
         >
@@ -417,7 +428,7 @@
     
     <!-- Header -->
     <div class="flex items-center gap-3 mb-6">
-      <button @click="page = isCardioOnly ? 'select-workout' : 'workout'" class="p-2 hover:bg-gray-800 rounded-lg">
+      <button type="button" @click="page = isCardioOnly ? 'select-workout' : 'workout'" class="p-2 hover:bg-gray-800 rounded-lg">
         <i data-lucide="chevron-left" class="w-6 h-6"></i>
       </button>
       <h1 class="text-xl font-bold" x-text="isCardioOnly ? 'Кардио тренировка' : `Кардио (${currentWorkout?.cardio || 30} мин)`"></h1>
@@ -440,6 +451,7 @@
       <div class="grid grid-cols-3 gap-3">
         <template x-for="type in cardioTypes" :key="type.id">
           <button
+            type="button"
             @click="cardioData.type = type.id"
             class="p-3 rounded-xl flex flex-col items-center gap-2 transition-colors"
             :class="cardioData.type === type.id ? 'bg-purple-500' : 'bg-gray-700'"
@@ -455,7 +467,8 @@
     <div class="bg-gray-800 rounded-2xl p-4 mb-4">
       <p class="text-sm text-gray-400 mb-3">Длительность (минуты)</p>
       <div class="flex items-center justify-center gap-4">
-        <button 
+        <button
+          type="button"
           @click="cardioData.duration = Math.max(5, cardioData.duration - 5)"
           class="w-14 h-14 bg-gray-700 rounded-xl flex items-center justify-center"
         >
@@ -464,7 +477,8 @@
         <div class="w-24 text-center">
           <p class="text-4xl font-bold" x-text="cardioData.duration"></p>
         </div>
-        <button 
+        <button
+          type="button"
           @click="cardioData.duration += 5"
           class="w-14 h-14 bg-gray-700 rounded-xl flex items-center justify-center"
         >
@@ -476,6 +490,7 @@
       <div class="flex justify-center gap-2 mt-3">
         <template x-for="min in [20, 30, 45, 60]" :key="min">
           <button
+            type="button"
             @click="cardioData.duration = min"
             class="px-4 py-2 rounded-lg text-sm transition-colors"
             :class="cardioData.duration === min ? 'bg-purple-500' : 'bg-gray-700'"
@@ -497,6 +512,7 @@
     </div>
 
     <button
+      type="button"
       @click="page = 'complete'"
       class="w-full bg-purple-500 hover:bg-purple-600 rounded-xl py-4 font-bold text-lg active:scale-[0.98] transition-transform"
       x-text="isCardioOnly ? 'Завершить кардио' : 'Далее →'"
@@ -563,6 +579,7 @@
 
     <!-- Save Button -->
     <button
+      type="button"
       @click="saveWorkout()"
       class="w-full bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl py-4 font-bold text-lg flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
     >
