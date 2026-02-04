@@ -6,6 +6,8 @@ const Storage = {
     WORKOUTS: 'gym_workouts',
     STATS: 'gym_stats',
     PROFILE: 'gym_profile',
+    SESSION: 'gym_session',
+    TEMPLATES: 'gym_templates',
   },
   
   // ===== WORKOUTS =====
@@ -33,6 +35,31 @@ const Storage = {
       return true;
     } catch (e) {
       console.error('Error saving workout:', e);
+      return false;
+    }
+  },
+  
+  deleteWorkout(id) {
+    try {
+      const workouts = this.getWorkouts().filter(w => w.id !== id);
+      localStorage.setItem(this.KEYS.WORKOUTS, JSON.stringify(workouts));
+      return true;
+    } catch (e) {
+      console.error('Error deleting workout:', e);
+      return false;
+    }
+  },
+  
+  updateWorkout(workout) {
+    try {
+      const workouts = this.getWorkouts();
+      const idx = workouts.findIndex(w => w.id === workout.id);
+      if (idx === -1) return false;
+      workouts[idx] = workout;
+      localStorage.setItem(this.KEYS.WORKOUTS, JSON.stringify(workouts));
+      return true;
+    } catch (e) {
+      console.error('Error updating workout:', e);
       return false;
     }
   },
@@ -107,10 +134,67 @@ const Storage = {
     }
   },
   
+  // ===== SESSION (для восстановления после перезагрузки) =====
+  getSession() {
+    try {
+      const data = localStorage.getItem(this.KEYS.SESSION);
+      return data ? JSON.parse(data) : null;
+    } catch (e) {
+      console.error('Error reading session:', e);
+      return null;
+    }
+  },
+  
+  saveSession(session) {
+    try {
+      if (!session) return false;
+      session.savedAt = new Date().toISOString();
+      localStorage.setItem(this.KEYS.SESSION, JSON.stringify(session));
+      return true;
+    } catch (e) {
+      console.error('Error saving session:', e);
+      return false;
+    }
+  },
+  
+  clearSession() {
+    try {
+      localStorage.removeItem(this.KEYS.SESSION);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  },
+  
+  // ===== TEMPLATES (шаблоны тренировок) =====
+  getTemplates() {
+    try {
+      const data = localStorage.getItem(this.KEYS.TEMPLATES);
+      const custom = data ? JSON.parse(data) : null;
+      const base = typeof WORKOUT_TEMPLATES !== 'undefined' ? WORKOUT_TEMPLATES : {};
+      return custom && Object.keys(custom).length > 0 ? { ...base, ...custom } : base;
+    } catch (e) {
+      console.error('Error reading templates:', e);
+      return typeof WORKOUT_TEMPLATES !== 'undefined' ? WORKOUT_TEMPLATES : {};
+    }
+  },
+  
+  saveTemplates(templates) {
+    try {
+      localStorage.setItem(this.KEYS.TEMPLATES, JSON.stringify(templates));
+      return true;
+    } catch (e) {
+      console.error('Error saving templates:', e);
+      return false;
+    }
+  },
+  
   // ===== CLEAR =====
   clearAll() {
     localStorage.removeItem(this.KEYS.WORKOUTS);
     localStorage.removeItem(this.KEYS.STATS);
     localStorage.removeItem(this.KEYS.PROFILE);
+    localStorage.removeItem(this.KEYS.SESSION);
+    localStorage.removeItem(this.KEYS.TEMPLATES);
   }
 };

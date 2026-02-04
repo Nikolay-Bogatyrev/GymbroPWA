@@ -136,6 +136,17 @@ function gymTracker() {
     // Recent workouts
     recentWorkouts: [],
     
+    // Edit saved workout
+    editingWorkout: null,
+    
+    // Manage exercises (templates)
+    managingWorkoutKey: null,
+    editingExerciseIndex: -1,
+    exerciseForm: { name: '', sets: 3, reps: 12, icon: 'dumbbell', alts: [], altsStr: '' },
+    
+    // Rest timer
+    restTimer: { secondsLeft: 0, type: 'set', intervalId: null },
+    
     // ===== COMPUTED =====
     get currentExercise() {
       if (!this.currentWorkout || !this.currentWorkout.exercises) {
@@ -165,8 +176,10 @@ function gymTracker() {
         }
       });
       
-      // Загрузка данных тренировок
-      this.workouts = getWorkoutTemplates();
+      // Загрузка данных тренировок (Storage.getTemplates переопределяет data.js)
+      this.workouts = (typeof Storage !== 'undefined' && Storage.getTemplates)
+        ? Storage.getTemplates()
+        : getWorkoutTemplates();
       
       // Создаём массив для итерации в шаблоне
       this.workoutList = Object.entries(this.workouts).map(([key, value]) => ({
@@ -189,6 +202,18 @@ function gymTracker() {
       
       // Расчёт пульсовых зон
       this.calculateHRZones();
+      
+      // Очистка сессии при выходе из тренировки
+      if (this.$watch) {
+        this.$watch('page', (value) => {
+          if ((value === 'dashboard' || value === 'select-workout') && typeof Storage !== 'undefined' && Storage.clearSession) {
+            Storage.clearSession();
+          }
+        });
+      }
+      
+      // Сохранение сессии при закрытии/перезагрузке
+      window.addEventListener('beforeunload', () => this.saveSession());
       
       this.isReady = true;
       console.log('✅ GymBro ready!');
@@ -271,6 +296,7 @@ function gymTracker() {
         // Переключение страницы
         console.log('🔄 Switching to workout page...');
         this.page = 'workout';
+        this.saveSession();
         console.log('✓ page =', this.page);
         
       } catch (error) {
@@ -295,13 +321,42 @@ function gymTracker() {
         reps: this.currentReps,
         timestamp: new Date().toISOString(),
       });
+      this.saveSession();
       
-      // Проверка завершения всех сетов
       const targetSets = this.currentExercise.sets || 3;
       if (this.currentExerciseSets.length >= targetSets) {
-        console.log('✓ All sets complete, moving to next exercise');
+        this.startRest(120, 'exercise');
+      } else {
+        this.startRest(60, 'set');
+      }
+    },
+    
+    startRest(seconds, type) {
+      if (this.restTimer.intervalId) clearInterval(this.restTimer.intervalId);
+      this.restTimer.secondsLeft = seconds;
+      this.restTimer.type = type;
+      this.page = 'rest';
+      this.saveSession();
+      this.restTimer.intervalId = setInterval(() => {
+        this.restTimer.secondsLeft--;
+        if (this.restTimer.secondsLeft <= 0) {
+          clearInterval(this.restTimer.intervalId);
+          this.restTimer.intervalId = null;
+          this.endRest();
+        }
+      }, 1000);
+    },
+    
+    endRest() {
+      if (this.restTimer.intervalId) {
+        clearInterval(this.restTimer.intervalId);
+        this.restTimer.intervalId = null;
+      }
+      if (this.restTimer.type === 'exercise') {
         this.nextExercise();
       }
+      this.page = 'workout';
+      this.saveSession();
     },
     
     nextExercise() {
@@ -327,6 +382,7 @@ function gymTracker() {
         this.isCardioOnly = false;
         this.cardioData.duration = this.currentWorkout.cardio || 30;
         this.page = 'cardio';
+        this.saveSession();
       }
     },
     
@@ -369,6 +425,10 @@ function gymTracker() {
         this.updateStats(workout);
       } else {
         console.warn('Storage not available, workout not saved');
+      }
+      
+      if (typeof Storage !== 'undefined' && Storage.clearSession) {
+        Storage.clearSession();
       }
       
       // Сброс состояния
@@ -444,7 +504,54 @@ function gymTracker() {
       // Обновление lastWeight из истории
       this.loadLastWeights();
       
+      // Восстановление сессии после перезагрузки
+      this.restoreSession();
+      
       console.log('  recent workouts:', this.recentWorkouts.length);
+    },
+    
+    saveSession() {
+      if (typeof Storage === 'undefined' || !Storage.saveSession) return;
+      const p = this.page;
+      if (p !== 'workout' && p !== 'cardio' && p !== 'complete' && p !== 'rest') return;
+      Storage.saveSession({
+        page: p,
+        currentWorkout: this.currentWorkout ? JSON.parse(JSON.stringify(this.currentWorkout)) : null,
+        currentExerciseIndex: this.currentExerciseIndex,
+        sets: [...this.sets],
+        cardioData: { ...this.cardioData },
+        moodPost: this.moodPost,
+        moodDay: this.moodDay,
+        notes: this.notes,
+        isCardioOnly: this.isCardioOnly,
+      });
+    },
+    
+    restoreSession() {
+      if (typeof Storage === 'undefined' || !Storage.getSession) return;
+      const s = Storage.getSession();
+      if (!s || !s.savedAt) return;
+      const savedAt = new Date(s.savedAt);
+      const hours = (Date.now() - savedAt) / 3600000;
+      if (hours > 24) {
+        Storage.clearSession();
+        return;
+      }
+      this.page = (s.page === 'rest' ? 'workout' : s.page) || 'dashboard';
+      if (s.currentWorkout) this.currentWorkout = s.currentWorkout;
+      this.currentExerciseIndex = s.currentExerciseIndex ?? 0;
+      this.sets = s.sets || [];
+      this.cardioData = s.cardioData ? { ...s.cardioData } : this.cardioData;
+      this.moodPost = s.moodPost ?? 7;
+      this.moodDay = s.moodDay ?? 7;
+      this.notes = s.notes || '';
+      this.isCardioOnly = s.isCardioOnly ?? false;
+      const ex = this.currentWorkout?.exercises?.[this.currentExerciseIndex];
+      if (ex) {
+        this.currentWeight = ex.lastWeight ?? 20;
+        this.currentReps = typeof ex.reps === 'number' ? ex.reps : 12;
+      }
+      console.log('  session restored to:', this.page);
     },
     
     getWeekStart() {
@@ -473,6 +580,28 @@ function gymTracker() {
       }
       this.stats.weekCompleted = Math.min(7, completed);
       this.stats.cardioMinutes = cardioMins;
+    },
+    
+    getWeekDaysStatus() {
+      const days = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+      const todayIndex = (new Date().getDay() + 6) % 7;
+      const weekStart = this.getWeekStart();
+      const start = new Date(weekStart + 'T00:00:00');
+      const workouts = Storage.getWorkouts ? Storage.getWorkouts() : [];
+      const completedByDay = new Set();
+      for (const w of workouts) {
+        const wDate = new Date(w.dateISO || w.date);
+        if (wDate >= start && wDate < new Date(start.getTime() + 7 * 86400000)) {
+          const dayIndex = (wDate.getDay() + 6) % 7;
+          completedByDay.add(dayIndex);
+        }
+      }
+      return days.map((dayName, index) => ({
+        dayName,
+        completed: completedByDay.has(index),
+        isFuture: index > todayIndex,
+        isToday: index === todayIndex,
+      }));
     },
     
     loadLastWeights() {
@@ -515,6 +644,121 @@ function gymTracker() {
     
     getExerciseIcon(iconName) {
       return getExerciseIconSafe(iconName);
+    },
+    
+    deleteWorkout(id) {
+      if (!confirm('Удалить эту тренировку?')) return;
+      if (typeof Storage !== 'undefined' && Storage.deleteWorkout) {
+        Storage.deleteWorkout(id);
+        this.loadData();
+      }
+    },
+    
+    editWorkout(workout) {
+      this.editingWorkout = JSON.parse(JSON.stringify(workout));
+      this.page = 'edit-workout';
+    },
+    
+    openManageExercises() {
+      this.managingWorkoutKey = null;
+      this.editingExerciseIndex = -1;
+      this.page = 'manage-exercises';
+    },
+    
+    selectWorkoutToManage(key) {
+      this.managingWorkoutKey = key;
+      this.editingExerciseIndex = -1;
+    },
+    
+    backToWorkoutList() {
+      this.managingWorkoutKey = null;
+      this.editingExerciseIndex = -1;
+    },
+    
+    getIconKeys() {
+      return typeof EXERCISE_ICONS !== 'undefined' ? Object.keys(EXERCISE_ICONS) : ['dumbbell'];
+    },
+    
+    startAddExercise() {
+      this.exerciseForm = { name: '', sets: 3, reps: 12, icon: 'dumbbell', alts: [], altsStr: '' };
+      this.editingExerciseIndex = -2;
+    },
+    
+    startEditExercise(index) {
+      const ex = this.workouts[this.managingWorkoutKey]?.exercises?.[index];
+      if (!ex) return;
+      const alts = Array.isArray(ex.alts) ? ex.alts : [];
+      this.exerciseForm = {
+        name: ex.name,
+        sets: ex.sets ?? 3,
+        reps: ex.reps ?? 12,
+        icon: ex.icon || 'dumbbell',
+        alts,
+        altsStr: alts.join(', '),
+      };
+      this.editingExerciseIndex = index;
+    },
+    
+    saveExercise() {
+      if (!this.managingWorkoutKey || !this.workouts[this.managingWorkoutKey]) return;
+      const alts = (this.exerciseForm.altsStr || '')
+        .split(',')
+        .map(s => s.trim())
+        .filter(Boolean);
+      const ex = {
+        id: this.editingExerciseIndex >= 0
+          ? this.workouts[this.managingWorkoutKey].exercises[this.editingExerciseIndex].id
+          : 'ex_' + Date.now(),
+        name: this.exerciseForm.name || 'Упражнение',
+        sets: this.exerciseForm.sets || 3,
+        reps: this.exerciseForm.reps || 12,
+        icon: this.exerciseForm.icon || 'dumbbell',
+        lastWeight: this.editingExerciseIndex >= 0
+          ? (this.workouts[this.managingWorkoutKey].exercises[this.editingExerciseIndex].lastWeight ?? 20)
+          : 20,
+        alts,
+      };
+      const exercises = [...(this.workouts[this.managingWorkoutKey].exercises || [])];
+      if (this.editingExerciseIndex >= 0) {
+        exercises[this.editingExerciseIndex] = ex;
+      } else {
+        exercises.push(ex);
+      }
+      this.workouts[this.managingWorkoutKey] = { ...this.workouts[this.managingWorkoutKey], exercises };
+      this.workoutList = Object.entries(this.workouts).map(([k, v]) => ({ key: k, ...v }));
+      if (typeof Storage !== 'undefined' && Storage.saveTemplates) {
+        Storage.saveTemplates(this.workouts);
+      }
+      this.editingExerciseIndex = -1;
+    },
+    
+    deleteExerciseFromTemplate(index) {
+      if (!this.managingWorkoutKey || !confirm('Удалить упражнение?')) return;
+      const exercises = [...(this.workouts[this.managingWorkoutKey].exercises || [])];
+      exercises.splice(index, 1);
+      this.workouts[this.managingWorkoutKey] = { ...this.workouts[this.managingWorkoutKey], exercises };
+      this.workoutList = Object.entries(this.workouts).map(([k, v]) => ({ key: k, ...v }));
+      if (typeof Storage !== 'undefined' && Storage.saveTemplates) {
+        Storage.saveTemplates(this.workouts);
+      }
+      this.editingExerciseIndex = -1;
+    },
+    
+    saveEditedWorkout() {
+      if (!this.editingWorkout) return;
+      this.editingWorkout.mood = this.editingWorkout.moodPost ?? this.editingWorkout.mood ?? 7;
+      this.editingWorkout.moodDay = this.editingWorkout.moodDay ?? 7;
+      if (typeof Storage !== 'undefined' && Storage.updateWorkout) {
+        Storage.updateWorkout(this.editingWorkout);
+      }
+      this.stats.weekStart = this.getWeekStart();
+      this.recalculateWeekStats();
+      if (typeof Storage !== 'undefined' && Storage.saveStats) {
+        Storage.saveStats(this.stats);
+      }
+      this.editingWorkout = null;
+      this.loadData();
+      this.page = 'dashboard';
     },
   };
 }
