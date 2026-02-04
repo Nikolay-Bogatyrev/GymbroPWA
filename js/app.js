@@ -27,8 +27,8 @@ function gymTracker() {
       weekStart: null, // ISO date of Monday (YYYY-MM-DD) for weekly reset
     },
     
-    // Workouts data
-    workouts: WORKOUT_TEMPLATES, // from data.js
+    // Workouts data (fallback if data.js fails to load)
+    workouts: typeof WORKOUT_TEMPLATES !== 'undefined' ? WORKOUT_TEMPLATES : {},
     currentWorkout: null,
     currentExerciseIndex: 0,
     
@@ -60,6 +60,9 @@ function gymTracker() {
     // Recent workouts
     recentWorkouts: [],
     
+    // Workout list for select screen (computed in init, not getter)
+    workoutList: [],
+    
     // ===== COMPUTED =====
     get currentExercise() {
       return this.currentWorkout?.exercises[this.currentExerciseIndex];
@@ -69,20 +72,24 @@ function gymTracker() {
       return this.sets.filter(s => s.exerciseIndex === this.currentExerciseIndex);
     },
     
-    get workoutList() {
-      const w = this.workouts || {};
-      return Object.keys(w).map(key => ({ key, workout: w[key] }));
-    },
-    
     // ===== INIT =====
     init() {
+      // Build workout list (property, not getter - more reliable)
+      const w = this.workouts || {};
+      this.workoutList = Object.keys(w).map(key => ({ key, workout: w[key] }));
+      if (!this.workoutList.length) {
+        console.warn('GymBro: WORKOUT_TEMPLATES not loaded - check js/data.js');
+      }
+      
       // Load data from localStorage
       this.loadData();
       
-      // Load profile from localStorage
-      const savedProfile = Storage.getProfile();
-      if (savedProfile) {
-        this.profile = { ...this.profile, ...savedProfile };
+      // Load profile from localStorage (Storage = our wrapper from storage.js)
+      if (typeof Storage !== 'undefined' && typeof Storage.getProfile === 'function') {
+        const savedProfile = Storage.getProfile();
+        if (savedProfile) {
+          this.profile = { ...this.profile, ...savedProfile };
+        }
       }
       
       // Calculate HR zones based on age
