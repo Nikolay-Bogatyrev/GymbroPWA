@@ -80,20 +80,26 @@
         </span>
       </div>
       
-      <!-- Week days -->
+      <!-- Week days (тап — отметить тренировку: прогулка, зал и т.д.) -->
       <div class="flex gap-1 mb-3">
-        <template x-for="(day, index) in getWeekDaysStatus()" :key="day.dayName">
+        <template x-for="(day, index) in getWeekDaysStatus()" :key="day.dayName + day.dateStr">
           <div class="flex-1 text-center">
-            <div 
-              class="h-10 rounded-lg mb-1 flex items-center justify-center transition-colors"
+            <button
+              type="button"
+              @click="markDayAsWorkout(day)"
+              :disabled="!day.canMark"
+              :title="day.canMark ? (day.completed ? 'День с тренировкой' : 'Отметить тренировку (прогулка, зал)') : ''"
+              class="w-full h-10 rounded-lg mb-1 flex items-center justify-center transition-colors disabled:cursor-default"
               :class="{
-                'bg-green-500': day.completed,
-                'bg-blue-500 animate-pulse': day.isToday && !day.completed,
-                'bg-gray-700': day.isFuture || (!day.completed && !day.isToday)
+                'bg-green-500 hover:bg-green-600 active:scale-95 cursor-pointer': day.completed && day.canMark,
+                'bg-blue-500 animate-pulse hover:bg-blue-600 active:scale-95 cursor-pointer': day.isToday && !day.completed && day.canMark,
+                'bg-gray-700 hover:bg-gray-600 active:scale-95 cursor-pointer': day.canMark && !day.completed && !day.isToday,
+                'bg-gray-700 cursor-default': !day.canMark
               }"
             >
               <i x-show="day.completed" data-lucide="check" class="w-5 h-5"></i>
-            </div>
+              <i x-show="day.canMark && !day.completed" data-lucide="plus" class="w-4 h-4 opacity-70"></i>
+            </button>
             <span class="text-xs text-gray-500" x-text="day.dayName"></span>
           </div>
         </template>

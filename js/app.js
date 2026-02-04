@@ -466,6 +466,7 @@ function gymTracker() {
         }
       }
       
+      this.recalculateStreak();
       if (typeof Storage !== 'undefined' && Storage.saveStats) {
         Storage.saveStats(this.stats);
       }
@@ -503,6 +504,9 @@ function gymTracker() {
       
       // Обновление lastWeight из истории
       this.loadLastWeights();
+      
+      // Пересчёт стрика
+      this.recalculateStreak();
       
       // Восстановление сессии после перезагрузки
       this.restoreSession();
@@ -596,12 +600,68 @@ function gymTracker() {
           completedByDay.add(dayIndex);
         }
       }
-      return days.map((dayName, index) => ({
-        dayName,
-        completed: completedByDay.has(index),
-        isFuture: index > todayIndex,
-        isToday: index === todayIndex,
-      }));
+      return days.map((dayName, index) => {
+        const d = new Date(start.getTime() + index * 86400000);
+        const dateStr = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+        return {
+          dayName,
+          dateStr,
+          completed: completedByDay.has(index),
+          isFuture: index > todayIndex,
+          isToday: index === todayIndex,
+          canMark: index <= todayIndex,
+        };
+      });
+    },
+    
+    recalculateStreak() {
+      const workouts = Storage.getWorkouts ? Storage.getWorkouts() : [];
+      const workoutDates = new Set();
+      for (const w of workouts) {
+        const d = new Date(w.dateISO || w.date);
+        const s = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+        workoutDates.add(s);
+      }
+      const today = new Date();
+      let streak = 0;
+      for (let i = 0; i < 365; i++) {
+        const d = new Date(today);
+        d.setDate(d.getDate() - i);
+        const dateStr = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+        if (workoutDates.has(dateStr)) {
+          streak++;
+        } else {
+          break;
+        }
+      }
+      this.stats.streak = streak;
+    },
+    
+    markDayAsWorkout(day) {
+      if (!day.canMark || typeof Storage === 'undefined' || !Storage.saveWorkout) return;
+      const d = new Date(day.dateStr + 'T12:00:00');
+      const workout = {
+        id: Date.now(),
+        date: d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' }),
+        dateISO: d.toISOString(),
+        type: 'walk',
+        name: 'Прогулка',
+        sets: [],
+        cardio: { type: 'treadmill', duration: 60, podcast: '' },
+        moodPost: 7,
+        moodDay: 7,
+        notes: 'Отмечено вручную',
+        mood: 7,
+      };
+      Storage.saveWorkout(workout);
+      this.recalculateStreak();
+      this.stats.weekStart = this.getWeekStart();
+      this.recalculateWeekStats();
+      if (typeof Storage !== 'undefined' && Storage.saveStats) {
+        Storage.saveStats(this.stats);
+      }
+      const workouts = Storage.getWorkouts ? Storage.getWorkouts() : [];
+      this.recentWorkouts = workouts.slice(0, 5);
     },
     
     loadLastWeights() {
