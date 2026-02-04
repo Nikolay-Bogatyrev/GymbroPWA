@@ -69,6 +69,11 @@ function gymTracker() {
       return this.sets.filter(s => s.exerciseIndex === this.currentExerciseIndex);
     },
     
+    get workoutList() {
+      const w = this.workouts || {};
+      return Object.keys(w).map(key => ({ key, workout: w[key] }));
+    },
+    
     // ===== INIT =====
     init() {
       // Load data from localStorage
@@ -115,13 +120,15 @@ function gymTracker() {
     },
     
     selectWorkout(key) {
-      this.currentWorkout = { ...this.workouts[key], key };
+      const workout = this.workouts?.[key];
+      if (!workout?.exercises?.length) return;
+      
+      this.currentWorkout = { ...workout, key };
       this.currentExerciseIndex = 0;
       this.sets = [];
       this.selectedAlt = null;
       this.showAlternatives = false;
       
-      // Set initial weight/reps from first exercise (?? for 0 in planks)
       const firstEx = this.currentWorkout.exercises[0];
       this.currentWeight = firstEx.lastWeight ?? 20;
       this.currentReps = typeof firstEx.reps === 'number' ? firstEx.reps : 12;

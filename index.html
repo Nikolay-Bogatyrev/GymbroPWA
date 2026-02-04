@@ -191,22 +191,22 @@
 
     <!-- Workout Cards -->
     <div class="space-y-3">
-      <template x-for="[key, workout] in Object.entries(workouts)" :key="key">
+      <template x-for="item in workoutList" :key="item.key">
         <button
           type="button"
-          @click="selectWorkout(key)"
+          @click="selectWorkout(item.key)"
           class="w-full rounded-2xl p-4 flex items-center gap-4 shadow-lg active:scale-[0.98] transition-transform"
-          :class="workout.gradient"
+          :class="item.workout.gradient"
         >
           <div class="w-16 h-16 bg-white/20 rounded-xl flex items-center justify-center p-2">
-            <div x-html="getExerciseIcon(workout.exercises[0]?.icon || 'dumbbell')"></div>
+            <div x-html="getExerciseIcon(item.workout.exercises[0]?.icon || 'dumbbell')"></div>
           </div>
           <div class="flex-1 text-left">
-            <p class="text-2xl mb-1" x-text="workout.emoji"></p>
-            <p class="font-bold text-lg" x-text="workout.name"></p>
+            <p class="text-2xl mb-1" x-text="item.workout.emoji"></p>
+            <p class="font-bold text-lg" x-text="item.workout.name"></p>
             <p class="text-white/70 text-sm">
-              <span x-text="workout.exercises.length"></span> упражнений + 
-              <span x-text="workout.cardio"></span> мин кардио
+              <span x-text="item.workout.exercises.length"></span> упражнений + 
+              <span x-text="item.workout.cardio"></span> мин кардио
             </p>
           </div>
           <i data-lucide="chevron-right" class="w-6 h-6"></i>
