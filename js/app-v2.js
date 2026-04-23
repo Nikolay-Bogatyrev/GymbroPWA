@@ -50,6 +50,47 @@
     // Inline YouTube player — id упражнения, для которого открыт встроенный плеер
     base.inlineVideoExerciseId = null;
 
+    // ===== Workflow v2: Energy-pre + новая тренировка =====
+    base.energyPreTemplateId = null; // шаблон, который сейчас прогоняем через energy-pre
+    base.energyPre = 6;              // 1..10
+    base.energyTags = {
+      shoulderPain: false,
+      kneePain: false,
+      backPain: false,
+      lowSleep: false,
+      stressed: false,
+      fullEnergy: false,
+      lowTime: false,
+    };
+    base.energyAdjustments = []; // визуализация применённых правил
+
+    // Активная сессия v2
+    base.session2 = null;
+    /* session2 shape:
+       { templateId, programId, startedAt, energyPre, tags,
+         items: [...adjusted items, добавляем поля:],
+         currentItemIndex, currentSetIndex,
+         sets: [{ exerciseId, setIndex, weight, reps, timeSec, timestamp, skipped?, reason? }] }
+    */
+
+    // Active set draft (то, что пользователь сейчас вводит)
+    base.draftWeight = 0;
+    base.draftReps = 0;
+    base.draftTimeSec = 0;
+
+    // Внутренний секундомер для time-based упражнений
+    base.workTimer = { running: false, startedAt: 0, pausedSec: 0, intervalId: null };
+
+    // Замена упражнения
+    base.replaceItemIndex = null;     // индекс item в session2.items
+    base.replaceSearchQuery = '';
+    base.replaceShoulderOnly = false; // фильтр
+
+    // Завершение тренировки v2
+    base.moodPost2 = 7;
+    base.notes2 = '';
+    base.lastSavedPRs = [];
+
     // ====== ИНИЦИАЛИЗАЦИЯ ======
     base.init = function () {
       try {
@@ -155,6 +196,400 @@
 
     base.isInlineVideoOpen = function (exerciseId) {
       return this.inlineVideoExerciseId === exerciseId;
+    };
+
+    // ============ Workflow v2: переходы ============
+    base.openEnergyPre = function (templateId) {
+      this.energyPreTemplateId = templateId;
+      this.energyPre = 6;
+      this.energyTags = {
+        shoulderPain: false, kneePain: false, backPain: false,
+        lowSleep: false, stressed: false, fullEnergy: false, lowTime: false,
+      };
+      this.energyAdjustments = [];
+      this.recomputeEnergyPreview();
+      this.page = 'energy-pre';
+    };
+
+    base.recomputeEnergyPreview = function () {
+      const t = (window.PROGRAMS && PROGRAMS.getTemplateById) ? PROGRAMS.getTemplateById(this.energyPreTemplateId) : null;
+      if (!t || !window.EnergyRules) {
+        this.energyAdjustments = [];
+        return;
+      }
+      const res = EnergyRules.applyEnergyRules({
+        items: t.items.map(i => ({ ...i })),
+        energy: this.energyPre,
+        tags: this.energyTags,
+      });
+      this.energyAdjustments = res.adjustments;
+    };
+
+    base.startWorkoutFromEnergy = function () {
+      const t = (window.PROGRAMS && PROGRAMS.getTemplateById) ? PROGRAMS.getTemplateById(this.energyPreTemplateId) : null;
+      if (!t) return;
+      const adjusted = window.EnergyRules
+        ? EnergyRules.applyEnergyRules({
+            items: t.items.map(i => ({ ...i })),
+            energy: this.energyPre,
+            tags: this.energyTags,
+          })
+        : { items: t.items.slice(), adjustments: [] };
+
+      // Применяем подсказки прогрессии (если есть история)
+      const itemsWithSuggestions = adjusted.items.map(it => {
+        if (!window.Progression) return it;
+        const sug = Progression.suggestNext(it);
+        return {
+          ...it,
+          weight: (sug && typeof sug.weight === 'number') ? sug.weight : it.weight,
+          reps: (sug && typeof sug.reps === 'number') ? sug.reps : it.reps,
+          timeSec: (sug && typeof sug.timeSec === 'number') ? sug.timeSec : it.timeSec,
+          _hint: sug?.hint || null,
+        };
+      });
+
+      this.session2 = {
+        templateId: this.energyPreTemplateId,
+        templateName: t.name,
+        programId: this.activeProgram?.id || null,
+        startedAt: new Date().toISOString(),
+        energyPre: this.energyPre,
+        tags: { ...this.energyTags },
+        adjustments: adjusted.adjustments,
+        items: itemsWithSuggestions,
+        currentItemIndex: 0,
+        currentSetIndex: 0, // 0..(item.sets-1)
+        sets: [],
+      };
+      this.loadDraftFromCurrentItem();
+      this.page = 'workout-v2';
+
+      // unlock audio для будущего таймера
+      if (window.GymTimer && window.GymTimer.unlockAudio) window.GymTimer.unlockAudio();
+      if (window.GymTimer && window.GymTimer.requestWakeLock) window.GymTimer.requestWakeLock();
+    };
+
+    // ============ Workflow v2: текущее упражнение ============
+    base.currentItem2 = function () {
+      if (!this.session2) return null;
+      return this.session2.items[this.session2.currentItemIndex] || null;
+    };
+
+    base.currentExercise2 = function () {
+      const it = this.currentItem2();
+      if (!it) return null;
+      return (window.Storage && Storage.getExerciseMerged) ? Storage.getExerciseMerged(it.exerciseId) : null;
+    };
+
+    base.currentExerciseType2 = function () {
+      const ex = this.currentExercise2();
+      return ex ? ex.type : 'weighted_reps';
+    };
+
+    base.loadDraftFromCurrentItem = function () {
+      const it = this.currentItem2();
+      if (!it) return;
+      this.draftWeight = typeof it.weight === 'number' ? it.weight : 0;
+      this.draftReps = typeof it.reps === 'number' ? it.reps : 0;
+      this.draftTimeSec = typeof it.timeSec === 'number' ? it.timeSec : 0;
+      this.stopWorkTimer();
+    };
+
+    base.totalSetsForCurrentItem = function () {
+      const it = this.currentItem2();
+      return it ? (it.sets || 0) : 0;
+    };
+
+    base.completedSetsForCurrentItem = function () {
+      if (!this.session2) return 0;
+      const idx = this.session2.currentItemIndex;
+      return this.session2.sets.filter(s => s.itemIndex === idx && !s.skipped).length;
+    };
+
+    // ============ Запись подхода ============
+    base.recordSet2 = function () {
+      if (!this.session2) return;
+      const it = this.currentItem2();
+      const ex = this.currentExercise2();
+      if (!it || !ex) return;
+
+      const setRecord = {
+        itemIndex: this.session2.currentItemIndex,
+        setIndex: this.session2.currentSetIndex,
+        exerciseId: it.exerciseId,
+        exerciseName: ex.name,
+        timestamp: new Date().toISOString(),
+      };
+      if (ex.type === 'weighted_reps') {
+        setRecord.weight = Number(this.draftWeight) || 0;
+        setRecord.reps = Number(this.draftReps) || 0;
+      } else if (ex.type === 'bodyweight_reps') {
+        setRecord.reps = Number(this.draftReps) || 0;
+      } else if (ex.type === 'time_only') {
+        setRecord.timeSec = Number(this.draftTimeSec) || 0;
+      } else if (ex.type === 'weighted_time') {
+        setRecord.weight = Number(this.draftWeight) || 0;
+        setRecord.timeSec = Number(this.draftTimeSec) || 0;
+      } else {
+        setRecord.reps = Number(this.draftReps) || 0;
+      }
+      this.session2.sets.push(setRecord);
+
+      // Двигаем счётчик подхода
+      const total = this.totalSetsForCurrentItem();
+      const done = this.completedSetsForCurrentItem();
+      if (done >= total) {
+        // Этот item закончен → отдых на следующее упражнение
+        this.startRestV2('exercise');
+      } else {
+        // Ещё подходы остались → отдых между подходами
+        this.session2.currentSetIndex++;
+        this.startRestV2('set');
+      }
+    };
+
+    base.skipSetOrItem = function () {
+      if (!this.session2) return;
+      this.session2.sets.push({
+        itemIndex: this.session2.currentItemIndex,
+        setIndex: this.session2.currentSetIndex,
+        exerciseId: this.currentItem2().exerciseId,
+        exerciseName: this.currentExercise2()?.name || '',
+        timestamp: new Date().toISOString(),
+        skipped: true,
+        reason: 'manual',
+      });
+      // Перейти к следующему упражнению
+      this.advanceToNextItem();
+    };
+
+    base.advanceToNextItem = function () {
+      if (!this.session2) return;
+      const next = this.session2.currentItemIndex + 1;
+      if (next >= this.session2.items.length) {
+        // Тренировка завершена
+        this.stopWorkTimer();
+        this.moodPost2 = 7;
+        this.notes2 = '';
+        this.page = 'workout-complete-v2';
+      } else {
+        this.session2.currentItemIndex = next;
+        this.session2.currentSetIndex = 0;
+        this.loadDraftFromCurrentItem();
+        this.page = 'workout-v2';
+      }
+    };
+
+    // ============ Отдых v2 (пока через простой setInterval — заменим в 4/4) ============
+    base.restRemaining2 = 0;
+    base.restType2 = 'set';
+    base._restIntervalId = null;
+
+    base.startRestV2 = function (type) {
+      this.stopRestV2();
+      const it = this.currentItem2();
+      const settings = (window.Storage && Storage.getSettings) ? Storage.getSettings() : { defaultRestSetSec: 60, defaultRestExerciseSec: 120 };
+      const sec = type === 'exercise'
+        ? (it?.restSec ? Math.max(it.restSec, settings.defaultRestExerciseSec) : settings.defaultRestExerciseSec)
+        : (it?.restSec || settings.defaultRestSetSec);
+      this.restRemaining2 = sec;
+      this.restType2 = type;
+      this.page = 'rest-v2';
+      const self = this;
+      this._restIntervalId = setInterval(() => {
+        self.restRemaining2--;
+        if (self.restRemaining2 <= 0) self.endRestV2();
+      }, 1000);
+    };
+
+    base.stopRestV2 = function () {
+      if (this._restIntervalId) {
+        clearInterval(this._restIntervalId);
+        this._restIntervalId = null;
+      }
+    };
+
+    base.skipRestV2 = function () {
+      this.endRestV2();
+    };
+
+    base.addRestSec = function (delta) {
+      this.restRemaining2 = Math.max(1, this.restRemaining2 + delta);
+    };
+
+    base.endRestV2 = function () {
+      this.stopRestV2();
+      if (this.restType2 === 'exercise') {
+        this.advanceToNextItem();
+      } else {
+        this.page = 'workout-v2';
+      }
+    };
+
+    // ============ Time-only / weighted_time секундомер для draft ============
+    base.startWorkTimer = function () {
+      this.stopWorkTimer();
+      const self = this;
+      this.workTimer.running = true;
+      this.workTimer.startedAt = performance.now();
+      const baseSec = Number(this.draftTimeSec) || 0;
+      this.workTimer.intervalId = setInterval(() => {
+        const elapsed = (performance.now() - self.workTimer.startedAt) / 1000;
+        self.draftTimeSec = Math.round(baseSec + elapsed);
+      }, 250);
+    };
+
+    base.stopWorkTimer = function () {
+      if (this.workTimer.intervalId) clearInterval(this.workTimer.intervalId);
+      this.workTimer.intervalId = null;
+      this.workTimer.running = false;
+    };
+
+    base.toggleWorkTimer = function () {
+      if (this.workTimer.running) this.stopWorkTimer();
+      else this.startWorkTimer();
+    };
+
+    base.resetDraftTime = function () {
+      this.stopWorkTimer();
+      this.draftTimeSec = 0;
+    };
+
+    // ============ Замена упражнения ============
+    base.openReplaceForCurrent = function () {
+      this.replaceItemIndex = this.session2 ? this.session2.currentItemIndex : null;
+      this.replaceSearchQuery = '';
+      this.replaceShoulderOnly = !!(this.session2 && this.session2.tags && this.session2.tags.shoulderPain);
+      this.page = 'replace-exercise';
+    };
+
+    base.cancelReplace = function () {
+      this.replaceItemIndex = null;
+      this.page = 'workout-v2';
+    };
+
+    base.getReplaceCandidates = function () {
+      if (!window.searchExercises) return [];
+      const item = this.session2?.items[this.replaceItemIndex];
+      const ex = item ? (window.EXERCISE_BY_ID || {})[item.exerciseId] : null;
+      // База кандидатов: альтернативы упражнения + результаты поиска
+      const altIds = ex?.alts || [];
+      const altList = altIds
+        .map(id => (window.EXERCISE_BY_ID || {})[id])
+        .filter(Boolean);
+      const searched = searchExercises({
+        query: this.replaceSearchQuery,
+        shoulderFriendlyOnly: this.replaceShoulderOnly,
+      });
+      // Уникализируем, alts наверх
+      const seen = new Set();
+      const out = [];
+      for (const e of altList) {
+        if (!seen.has(e.id)) { seen.add(e.id); out.push({ ...e, _alt: true }); }
+      }
+      for (const e of searched) {
+        if (e.id === item?.exerciseId) continue;
+        if (!seen.has(e.id)) { seen.add(e.id); out.push(e); }
+      }
+      return out.slice(0, 50);
+    };
+
+    base.confirmReplace = function (newExerciseId) {
+      if (!this.session2 || this.replaceItemIndex == null) return;
+      const it = this.session2.items[this.replaceItemIndex];
+      const fromId = it.exerciseId;
+      it._swappedFrom = fromId;
+      it.exerciseId = newExerciseId;
+      // Сбросим draft для нового упражнения
+      const newEx = (window.EXERCISE_BY_ID || {})[newExerciseId];
+      if (newEx) {
+        // Если стартового веса нет, оставляем как было; reps/time подхватят из item
+        if (newEx.type === 'time_only' || newEx.type === 'weighted_time') {
+          if (!it.timeSec) it.timeSec = 30;
+        }
+      }
+      this.replaceItemIndex = null;
+      this.loadDraftFromCurrentItem();
+      this.page = 'workout-v2';
+    };
+
+    // ============ Завершение тренировки v2 ============
+    base.finishWorkout2 = function () {
+      if (!this.session2) return;
+      const workout = {
+        id: Date.now(),
+        date: new Date().toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' }),
+        dateISO: new Date().toISOString(),
+        startedAt: this.session2.startedAt,
+        templateId: this.session2.templateId,
+        programId: this.session2.programId,
+        type: 'strength_v2',
+        name: this.session2.templateName || 'Тренировка',
+        energyPre: this.session2.energyPre,
+        tags: this.session2.tags,
+        adjustments: this.session2.adjustments,
+        sets: this.session2.sets,
+        moodPost: this.moodPost2,
+        mood: this.moodPost2,
+        notes: this.notes2,
+      };
+
+      if (window.Storage && Storage.saveWorkout) {
+        Storage.saveWorkout(workout);
+      }
+
+      // PRs
+      this.lastSavedPRs = [];
+      if (window.Progression && Progression.detectAndSavePRs) {
+        this.lastSavedPRs = Progression.detectAndSavePRs(workout);
+      }
+
+      // Стрик/неделя
+      if (typeof this.recalculateStreak === 'function') this.recalculateStreak();
+      if (typeof this.getWeekStart === 'function') this.stats.weekStart = this.getWeekStart();
+      if (typeof this.recalculateWeekStats === 'function') this.recalculateWeekStats();
+      if (window.Storage && Storage.saveStats) Storage.saveStats(this.stats);
+      if (typeof this.loadData === 'function') this.loadData();
+
+      // Сброс
+      this.session2 = null;
+      this.energyAdjustments = [];
+      this.energyPreTemplateId = null;
+
+      // Wake lock release
+      if (window.GymTimer && window.GymTimer.releaseWakeLock) window.GymTimer.releaseWakeLock();
+
+      this.page = 'dashboard';
+    };
+
+    base.cancelSession2 = function () {
+      if (!confirm('Прервать тренировку без сохранения?')) return;
+      this.stopWorkTimer();
+      this.stopRestV2();
+      if (window.GymTimer && window.GymTimer.releaseWakeLock) window.GymTimer.releaseWakeLock();
+      this.session2 = null;
+      this.energyAdjustments = [];
+      this.energyPreTemplateId = null;
+      this.page = 'dashboard';
+    };
+
+    // ============ Хелперы для UI ============
+    base.formatRest = function (sec) {
+      const s = Math.max(0, Math.floor(sec));
+      const m = Math.floor(s / 60);
+      const r = s % 60;
+      return m > 0 ? (m + ':' + String(r).padStart(2, '0')) : String(r);
+    };
+
+    base.energyTagsLabels = {
+      shoulderPain: '🤕 Плечо',
+      kneePain: '🤕 Колено',
+      backPain: '🤕 Спина',
+      lowSleep: '😴 Мало сна',
+      stressed: '😣 Стресс',
+      fullEnergy: '⚡ Полон сил',
+      lowTime: '⏱ Мало времени',
     };
     base.formatExerciseType = function (type) {
       const map = {

@@ -1147,11 +1147,443 @@
           </template>
         </div>
 
-        <p class="text-xs text-gray-500 mt-4 text-center">
-          Запуск тренировки из шаблона будет подключён на следующем шаге.
-        </p>
+        <button type="button"
+                @click="openEnergyPre(getSelectedTemplate().id)"
+                class="mt-4 w-full bg-gradient-to-r from-emerald-500 to-blue-500 rounded-2xl p-4 font-bold text-lg active:scale-[0.98] transition-transform shadow-lg shadow-emerald-500/20">
+          Начать тренировку →
+        </button>
       </div>
     </template>
+  </div>
+  </template>
+
+  <!-- ========== v2 СТРАНИЦА: ENERGY PRE ========== -->
+  <template x-if="page === 'energy-pre'">
+  <div class="min-h-screen p-4 pb-24">
+    <div class="flex items-center gap-3 mb-4">
+      <button type="button" @click="page = 'template-view'" class="p-2 hover:bg-gray-800 rounded-lg">
+        <i data-lucide="chevron-left" class="w-6 h-6"></i>
+      </button>
+      <h1 class="text-xl font-bold">Готов?</h1>
+    </div>
+
+    <!-- Energy slider -->
+    <div class="bg-gray-800 rounded-2xl p-4 mb-3">
+      <div class="flex justify-between items-center mb-2">
+        <span class="text-gray-300">Уровень энергии</span>
+        <span class="text-2xl font-bold"
+              :class="{
+                'text-red-400': energyPre <= 2,
+                'text-orange-400': energyPre === 3 || energyPre === 4,
+                'text-gray-200': energyPre >= 5 && energyPre <= 7,
+                'text-emerald-400': energyPre >= 8,
+              }"
+              x-text="energyPre + '/10'"></span>
+      </div>
+      <input type="range" min="1" max="10" step="1"
+             x-model.number="energyPre"
+             @input="recomputeEnergyPreview()"
+             class="w-full" />
+      <div class="flex justify-between text-xs text-gray-500 mt-1">
+        <span>выжат</span>
+        <span>норм</span>
+        <span>огонь</span>
+      </div>
+    </div>
+
+    <!-- Tags -->
+    <div class="bg-gray-800 rounded-2xl p-4 mb-3">
+      <p class="text-sm text-gray-400 mb-3">Теги (опционально)</p>
+      <div class="grid grid-cols-2 gap-2">
+        <template x-for="(label, key) in energyTagsLabels" :key="key">
+          <label class="flex items-center gap-2 bg-gray-700/50 rounded-lg px-3 py-2 cursor-pointer hover:bg-gray-700 text-sm">
+            <input type="checkbox"
+                   :checked="energyTags[key]"
+                   @change="energyTags[key] = $event.target.checked; recomputeEnergyPreview()"
+                   class="rounded" />
+            <span x-text="label"></span>
+          </label>
+        </template>
+      </div>
+    </div>
+
+    <!-- Adjustments preview -->
+    <template x-if="energyAdjustments.length > 0">
+      <div class="bg-emerald-900/20 border border-emerald-500/30 rounded-2xl p-3 mb-3">
+        <p class="text-xs text-emerald-300 uppercase tracking-wide mb-2">Корректировки</p>
+        <ul class="space-y-1 text-sm">
+          <template x-for="(adj, i) in energyAdjustments" :key="i">
+            <li class="text-gray-200">
+              <template x-if="adj.kind === 'swap'">
+                <span>🔄 <span class="line-through text-gray-500" x-text="adj.from"></span> → <span class="text-emerald-300" x-text="adj.to"></span> <span class="text-xs text-gray-400">(<span x-text="adj.reason"></span>)</span></span>
+              </template>
+              <template x-if="adj.kind === 'skip'">
+                <span>⛔ Пропустить: <span class="text-red-300" x-text="adj.from"></span> <span class="text-xs text-gray-400">(<span x-text="adj.reason"></span>)</span></span>
+              </template>
+              <template x-if="adj.kind === 'note'">
+                <span>💡 <span x-text="adj.text"></span></span>
+              </template>
+              <template x-if="adj.kind === 'recommend-deload'">
+                <span class="text-orange-300">⚠️ <span x-text="adj.text"></span></span>
+              </template>
+            </li>
+          </template>
+        </ul>
+      </div>
+    </template>
+
+    <button type="button"
+            @click="startWorkoutFromEnergy()"
+            class="w-full bg-gradient-to-r from-emerald-500 to-blue-500 rounded-2xl p-4 font-bold text-lg active:scale-[0.98] transition-transform shadow-lg">
+      Поехали →
+    </button>
+    <p class="text-xs text-gray-500 text-center mt-2">
+      Программа сама подстроит вес и подходы.
+    </p>
+  </div>
+  </template>
+
+  <!-- ========== v2 СТРАНИЦА: WORKOUT (v2) ========== -->
+  <template x-if="page === 'workout-v2'">
+  <div class="min-h-screen p-4 pb-24" x-data>
+    <template x-if="session2 && currentItem2()">
+      <div>
+        <!-- Header -->
+        <div class="flex items-center justify-between mb-4">
+          <button type="button" @click="cancelSession2()" class="p-2 hover:bg-gray-800 rounded-lg" title="Прервать">
+            <i data-lucide="x" class="w-5 h-5 text-gray-400"></i>
+          </button>
+          <div class="text-center">
+            <p class="text-xs text-gray-400">
+              <span x-text="(session2.currentItemIndex + 1) + ' / ' + session2.items.length"></span>
+            </p>
+            <p class="font-semibold text-sm" x-text="session2.templateName"></p>
+          </div>
+          <button type="button" @click="openReplaceForCurrent()" class="p-2 hover:bg-gray-800 rounded-lg" title="Заменить упражнение">
+            <i data-lucide="repeat" class="w-5 h-5 text-gray-400"></i>
+          </button>
+        </div>
+
+        <!-- Progress -->
+        <div class="flex gap-1 mb-4">
+          <template x-for="(it, i) in session2.items" :key="i">
+            <div class="flex-1 h-1 rounded-full"
+                 :class="{
+                   'bg-emerald-500': i < session2.currentItemIndex,
+                   'bg-blue-500': i === session2.currentItemIndex,
+                   'bg-gray-700': i > session2.currentItemIndex,
+                 }"></div>
+          </template>
+        </div>
+
+        <!-- Exercise card -->
+        <div class="bg-gray-800 rounded-2xl p-4 mb-3">
+          <div class="flex items-start justify-between gap-2 mb-2">
+            <div class="flex-1 min-w-0">
+              <p class="text-xs uppercase tracking-wide text-gray-400">
+                Упражнение
+                <template x-if="currentItem2()._swappedFrom">
+                  <span class="text-orange-300 ml-1">(заменено)</span>
+                </template>
+              </p>
+              <h2 class="text-xl font-bold" x-text="currentExercise2()?.name || '—'"></h2>
+              <p class="text-xs text-gray-400 mt-1">
+                <span x-text="formatExerciseType(currentExerciseType2())"></span>
+                <template x-if="currentExercise2()?.equipment">
+                  <span> · <span x-text="formatEquipment(currentExercise2().equipment)"></span></span>
+                </template>
+              </p>
+            </div>
+            <template x-if="currentExercise2() && getExerciseEmbedUrl(currentExercise2())">
+              <button type="button"
+                      @click="toggleInlineVideo(currentItem2().exerciseId)"
+                      class="p-2 hover:bg-gray-700 rounded-lg shrink-0">
+                <i :data-lucide="isInlineVideoOpen(currentItem2().exerciseId) ? 'x' : 'play-circle'"
+                   class="w-5 h-5"
+                   :class="isInlineVideoOpen(currentItem2().exerciseId) ? 'text-gray-300' : 'text-red-400'"></i>
+              </button>
+            </template>
+            <template x-if="currentExercise2() && !getExerciseEmbedUrl(currentExercise2()) && getExerciseSearchUrl(currentExercise2())">
+              <a :href="getExerciseSearchUrl(currentExercise2())" target="_blank" rel="noopener"
+                 class="p-2 hover:bg-gray-700 rounded-lg shrink-0">
+                <i data-lucide="search" class="w-5 h-5 text-gray-400"></i>
+              </a>
+            </template>
+          </div>
+
+          <!-- Inline video -->
+          <template x-if="currentItem2() && isInlineVideoOpen(currentItem2().exerciseId) && getExerciseEmbedUrl(currentExercise2())">
+            <div class="bg-black rounded-lg overflow-hidden mb-3">
+              <div class="relative" style="padding-bottom: 56.25%; height: 0;">
+                <iframe :src="getExerciseEmbedUrl(currentExercise2())"
+                        class="absolute inset-0 w-full h-full"
+                        allow="autoplay; encrypted-media; picture-in-picture"
+                        allowfullscreen></iframe>
+              </div>
+            </div>
+          </template>
+
+          <!-- Sets indicator -->
+          <div class="flex gap-1 mb-3">
+            <template x-for="i in totalSetsForCurrentItem()" :key="i">
+              <div class="flex-1 h-2 rounded-full"
+                   :class="(i <= completedSetsForCurrentItem()) ? 'bg-emerald-500' : 'bg-gray-700'"></div>
+            </template>
+          </div>
+          <p class="text-xs text-gray-400 mb-3">
+            Подход <span x-text="completedSetsForCurrentItem() + 1"></span> из <span x-text="totalSetsForCurrentItem()"></span>
+            <template x-if="currentItem2()._hint">
+              <span class="ml-2 text-emerald-300">💡 <span x-text="currentItem2()._hint"></span></span>
+            </template>
+          </p>
+
+          <!-- Условная форма по типу упражнения -->
+          <!-- weighted_reps -->
+          <template x-if="currentExerciseType2() === 'weighted_reps'">
+            <div class="space-y-3">
+              <div>
+                <label class="text-xs text-gray-400 mb-1 block">Вес, кг</label>
+                <div class="flex items-center gap-2">
+                  <button type="button" @click="draftWeight = Math.max(0, draftWeight - (currentExercise2()?.stepKg || 2.5))"
+                          class="w-12 h-12 bg-gray-700 hover:bg-gray-600 rounded-xl text-xl font-bold">−</button>
+                  <input type="number" step="0.25" x-model.number="draftWeight"
+                         class="flex-1 bg-gray-700 rounded-xl px-3 py-3 text-2xl text-center font-bold" />
+                  <button type="button" @click="draftWeight = draftWeight + (currentExercise2()?.stepKg || 2.5)"
+                          class="w-12 h-12 bg-gray-700 hover:bg-gray-600 rounded-xl text-xl font-bold">+</button>
+                </div>
+              </div>
+              <div>
+                <label class="text-xs text-gray-400 mb-1 block">Повторения</label>
+                <div class="flex items-center gap-2">
+                  <button type="button" @click="draftReps = Math.max(0, draftReps - 1)"
+                          class="w-12 h-12 bg-gray-700 hover:bg-gray-600 rounded-xl text-xl font-bold">−</button>
+                  <input type="number" step="1" x-model.number="draftReps"
+                         class="flex-1 bg-gray-700 rounded-xl px-3 py-3 text-2xl text-center font-bold" />
+                  <button type="button" @click="draftReps = draftReps + 1"
+                          class="w-12 h-12 bg-gray-700 hover:bg-gray-600 rounded-xl text-xl font-bold">+</button>
+                </div>
+              </div>
+            </div>
+          </template>
+
+          <!-- bodyweight_reps -->
+          <template x-if="currentExerciseType2() === 'bodyweight_reps'">
+            <div>
+              <label class="text-xs text-gray-400 mb-1 block">Повторения</label>
+              <div class="flex items-center gap-2">
+                <button type="button" @click="draftReps = Math.max(0, draftReps - 1)"
+                        class="w-12 h-12 bg-gray-700 hover:bg-gray-600 rounded-xl text-xl font-bold">−</button>
+                <input type="number" step="1" x-model.number="draftReps"
+                       class="flex-1 bg-gray-700 rounded-xl px-3 py-3 text-2xl text-center font-bold" />
+                <button type="button" @click="draftReps = draftReps + 1"
+                        class="w-12 h-12 bg-gray-700 hover:bg-gray-600 rounded-xl text-xl font-bold">+</button>
+              </div>
+            </div>
+          </template>
+
+          <!-- time_only -->
+          <template x-if="currentExerciseType2() === 'time_only'">
+            <div>
+              <label class="text-xs text-gray-400 mb-1 block">Секунды</label>
+              <div class="flex items-center gap-2">
+                <button type="button" @click="resetDraftTime()"
+                        class="w-12 h-12 bg-gray-700 hover:bg-gray-600 rounded-xl text-sm">↺</button>
+                <input type="number" step="1" x-model.number="draftTimeSec"
+                       class="flex-1 bg-gray-700 rounded-xl px-3 py-3 text-2xl text-center font-bold" />
+                <button type="button" @click="toggleWorkTimer()"
+                        class="w-12 h-12 rounded-xl text-xl"
+                        :class="workTimer.running ? 'bg-red-500 hover:bg-red-600' : 'bg-emerald-500 hover:bg-emerald-600'">
+                  <i :data-lucide="workTimer.running ? 'pause' : 'play'" class="w-5 h-5 mx-auto"></i>
+                </button>
+              </div>
+              <p class="text-xs text-gray-500 mt-1">Запусти секундомер или введи число вручную.</p>
+            </div>
+          </template>
+
+          <!-- weighted_time -->
+          <template x-if="currentExerciseType2() === 'weighted_time'">
+            <div class="space-y-3">
+              <div>
+                <label class="text-xs text-gray-400 mb-1 block">Вес, кг</label>
+                <div class="flex items-center gap-2">
+                  <button type="button" @click="draftWeight = Math.max(0, draftWeight - (currentExercise2()?.stepKg || 1.25))"
+                          class="w-12 h-12 bg-gray-700 hover:bg-gray-600 rounded-xl text-xl font-bold">−</button>
+                  <input type="number" step="0.25" x-model.number="draftWeight"
+                         class="flex-1 bg-gray-700 rounded-xl px-3 py-3 text-2xl text-center font-bold" />
+                  <button type="button" @click="draftWeight = draftWeight + (currentExercise2()?.stepKg || 1.25)"
+                          class="w-12 h-12 bg-gray-700 hover:bg-gray-600 rounded-xl text-xl font-bold">+</button>
+                </div>
+              </div>
+              <div>
+                <label class="text-xs text-gray-400 mb-1 block">Секунды</label>
+                <div class="flex items-center gap-2">
+                  <button type="button" @click="resetDraftTime()"
+                          class="w-12 h-12 bg-gray-700 hover:bg-gray-600 rounded-xl text-sm">↺</button>
+                  <input type="number" step="1" x-model.number="draftTimeSec"
+                         class="flex-1 bg-gray-700 rounded-xl px-3 py-3 text-2xl text-center font-bold" />
+                  <button type="button" @click="toggleWorkTimer()"
+                          class="w-12 h-12 rounded-xl"
+                          :class="workTimer.running ? 'bg-red-500 hover:bg-red-600' : 'bg-emerald-500 hover:bg-emerald-600'">
+                    <i :data-lucide="workTimer.running ? 'pause' : 'play'" class="w-5 h-5 mx-auto"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </template>
+        </div>
+
+        <!-- Action buttons -->
+        <div class="flex gap-2">
+          <button type="button"
+                  @click="recordSet2()"
+                  class="flex-1 bg-gradient-to-r from-emerald-500 to-blue-500 rounded-2xl p-4 font-bold text-lg active:scale-[0.98]">
+            Записать подход
+          </button>
+          <button type="button"
+                  @click="skipSetOrItem()"
+                  class="px-4 bg-gray-700 hover:bg-gray-600 rounded-2xl text-sm"
+                  title="Пропустить упражнение">
+            Пропустить →
+          </button>
+        </div>
+      </div>
+    </template>
+  </div>
+  </template>
+
+  <!-- ========== v2 СТРАНИЦА: REST (v2) ========== -->
+  <template x-if="page === 'rest-v2'">
+  <div class="min-h-screen p-4 pb-24 flex flex-col items-center justify-center">
+    <p class="text-sm text-gray-400 uppercase tracking-wide mb-2"
+       x-text="restType2 === 'exercise' ? 'Отдых перед упражнением' : 'Отдых между подходами'"></p>
+    <p class="text-7xl font-bold tabular-nums my-6"
+       :class="restRemaining2 <= 5 ? 'text-amber-400' : 'text-white'"
+       x-text="formatRest(restRemaining2)"></p>
+    <div class="flex gap-2 mb-6">
+      <button type="button" @click="addRestSec(-15)"
+              class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-xl text-sm">−15</button>
+      <button type="button" @click="addRestSec(15)"
+              class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-xl text-sm">+15</button>
+    </div>
+    <button type="button" @click="skipRestV2()"
+            class="bg-emerald-500 hover:bg-emerald-600 rounded-xl px-8 py-3 font-semibold">
+      Пропустить отдых
+    </button>
+    <template x-if="session2 && restType2 === 'set'">
+      <p class="mt-6 text-xs text-gray-500">
+        Дальше: подход <span x-text="completedSetsForCurrentItem() + 1"></span> из <span x-text="totalSetsForCurrentItem()"></span>
+      </p>
+    </template>
+    <template x-if="session2 && restType2 === 'exercise'">
+      <p class="mt-6 text-xs text-gray-500 text-center">
+        Дальше: <span class="font-semibold text-gray-300"
+          x-text="(session2.items[session2.currentItemIndex + 1] && (Storage.getExerciseMerged(session2.items[session2.currentItemIndex + 1].exerciseId)?.name)) || 'Финиш'"></span>
+      </p>
+    </template>
+  </div>
+  </template>
+
+  <!-- ========== v2 СТРАНИЦА: ЗАМЕНА УПРАЖНЕНИЯ ========== -->
+  <template x-if="page === 'replace-exercise'">
+  <div class="min-h-screen p-4 pb-24">
+    <div class="flex items-center gap-3 mb-4">
+      <button type="button" @click="cancelReplace()" class="p-2 hover:bg-gray-800 rounded-lg">
+        <i data-lucide="chevron-left" class="w-6 h-6"></i>
+      </button>
+      <h1 class="text-xl font-bold">Заменить упражнение</h1>
+    </div>
+
+    <p class="text-xs text-gray-400 mb-3">
+      Сейчас: <span class="text-gray-200 font-semibold"
+        x-text="(session2 && session2.items[replaceItemIndex]) ? ((window.EXERCISE_BY_ID || {})[session2.items[replaceItemIndex].exerciseId]?.name || '—') : '—'"></span>
+    </p>
+
+    <div class="bg-gray-800 rounded-xl p-3 mb-3">
+      <input type="text" x-model="replaceSearchQuery" placeholder="Поиск..."
+             class="w-full bg-gray-700 rounded-lg px-3 py-2 text-sm mb-2" />
+      <label class="flex items-center gap-2 text-sm">
+        <input type="checkbox" x-model="replaceShoulderOnly" class="rounded" />
+        <span class="text-gray-300">Только безопасные для плеча</span>
+      </label>
+    </div>
+
+    <div class="space-y-2">
+      <template x-for="ex in getReplaceCandidates()" :key="ex.id">
+        <button type="button"
+                @click="confirmReplace(ex.id)"
+                class="w-full bg-gray-800 hover:bg-gray-700 rounded-xl p-3 flex items-center gap-3 text-left">
+          <div class="flex-1 min-w-0">
+            <p class="font-semibold truncate">
+              <template x-if="ex._alt"><span class="text-emerald-400 mr-1">⭐</span></template>
+              <span x-text="ex.name"></span>
+            </p>
+            <p class="text-xs text-gray-400 truncate">
+              <span x-text="formatEquipment(ex.equipment)"></span> ·
+              <span x-text="(ex.muscles || []).map(m => formatMuscle(m)).join(', ')"></span>
+            </p>
+          </div>
+          <template x-if="ex.shoulderFriendly === true">
+            <span class="text-[10px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 rounded shrink-0">плечо ок</span>
+          </template>
+        </button>
+      </template>
+    </div>
+  </div>
+  </template>
+
+  <!-- ========== v2 СТРАНИЦА: COMPLETE (v2) ========== -->
+  <template x-if="page === 'workout-complete-v2'">
+  <div class="min-h-screen p-4 pb-24">
+    <div class="text-center mb-6">
+      <p class="text-6xl mb-2">🎉</p>
+      <h1 class="text-2xl font-bold">Готово!</h1>
+      <p class="text-gray-400 text-sm" x-text="session2?.templateName || ''"></p>
+    </div>
+
+    <template x-if="session2">
+      <div class="bg-gray-800 rounded-xl p-4 mb-3 text-center text-sm">
+        <p class="text-gray-400">Подходов записано</p>
+        <p class="text-3xl font-bold text-emerald-400" x-text="session2.sets.filter(s => !s.skipped).length"></p>
+      </div>
+    </template>
+
+    <template x-if="lastSavedPRs && lastSavedPRs.length > 0">
+      <div class="bg-amber-500/10 border border-amber-500/40 rounded-xl p-3 mb-3">
+        <p class="text-amber-300 text-sm font-bold mb-1">🏆 Новые рекорды!</p>
+        <ul class="text-xs text-amber-100 space-y-1">
+          <template x-for="pr in lastSavedPRs" :key="pr.exerciseId">
+            <li>
+              <span x-text="(window.EXERCISE_BY_ID || {})[pr.exerciseId]?.name || pr.exerciseId"></span>:
+              <template x-if="pr.metric === '1rm'">
+                <span><span x-text="Math.round(pr.value * 10) / 10"></span> кг (1RM)</span>
+              </template>
+              <template x-if="pr.metric === 'maxReps'">
+                <span><span x-text="pr.value"></span> повторений</span>
+              </template>
+              <template x-if="pr.metric === 'maxTimeSec'">
+                <span><span x-text="pr.value"></span> сек</span>
+              </template>
+            </li>
+          </template>
+        </ul>
+      </div>
+    </template>
+
+    <div class="bg-gray-800 rounded-xl p-4 mb-3">
+      <label class="text-sm text-gray-300 mb-2 block">Настроение после: <span class="font-bold" x-text="moodPost2"></span>/10</label>
+      <input type="range" min="1" max="10" step="1" x-model.number="moodPost2" class="w-full" />
+    </div>
+    <div class="bg-gray-800 rounded-xl p-4 mb-4">
+      <label class="text-sm text-gray-300 mb-2 block">Заметки</label>
+      <textarea x-model="notes2" rows="3" placeholder="Что было хорошо / что болело / идеи"
+                class="w-full bg-gray-700 rounded-lg px-3 py-2 text-sm"></textarea>
+    </div>
+
+    <button type="button"
+            @click="finishWorkout2()"
+            class="w-full bg-gradient-to-r from-emerald-500 to-blue-500 rounded-2xl p-4 font-bold text-lg">
+      Сохранить
+    </button>
   </div>
   </template>
 
