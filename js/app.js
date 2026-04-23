@@ -81,24 +81,24 @@ function gymTracker() {
     page: 'dashboard',
     isReady: false,
     
-    // Profile
+    // Profile (дефолты; можно отредактировать в «Настройках»)
     profile: {
-      name: 'Николай',
-      age: 36,
-      maxHR: 184,
-      fatBurnLow: 110,
-      fatBurnHigh: 138,
-      intervalLow: 147,
-      intervalHigh: 166,
+      name: 'Ты',
+      age: 30,
+      maxHR: 190,
+      fatBurnLow: 114,
+      fatBurnHigh: 142,
+      intervalLow: 152,
+      intervalHigh: 171,
     },
-    
-    // Stats
+
+    // Stats (ноль на старте; реальные числа подтянутся из Storage)
     stats: {
-      streak: 12,
-      weekCompleted: 5,
+      streak: 0,
+      weekCompleted: 0,
       weekTotal: 7,
-      cardioMinutes: 245,
-      avgMood: 7.8,
+      cardioMinutes: 0,
+      avgMood: null,
       weekStart: null,
     },
     

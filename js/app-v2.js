@@ -668,6 +668,122 @@
       return m > 0 ? (m + ':' + String(r).padStart(2, '0')) : String(r);
     };
 
+    // ============ Прогресс (графики 1RM / тоннаж) ============
+    base.progressExerciseId = null;
+
+    base.goProgress = function () {
+      this.progressExerciseId = null;
+      this.page = 'progress';
+    };
+
+    base.openProgressExercise = function (id) {
+      this.progressExerciseId = id;
+    };
+
+    base.getExercisesWithHistory = function () {
+      if (!window.Storage) return [];
+      const ws = Storage.getWorkouts();
+      const ids = new Set();
+      for (const w of ws) {
+        if (!Array.isArray(w.sets)) continue;
+        for (const s of w.sets) if (!s.skipped && s.exerciseId) ids.add(s.exerciseId);
+      }
+      const out = [];
+      for (const id of ids) {
+        const ex = (window.EXERCISE_BY_ID || {})[id];
+        if (!ex) continue;
+        const sessions = this.getExerciseSessionData(id);
+        out.push({
+          id,
+          name: ex.name,
+          type: ex.type,
+          sessionsCount: sessions.length,
+          last: sessions[sessions.length - 1] || null,
+        });
+      }
+      return out.sort((a, b) => (b.last?.ts || 0) - (a.last?.ts || 0));
+    };
+
+    // По каждой тренировке, где упражнение встречалось, вернуть summary
+    base.getExerciseSessionData = function (id) {
+      if (!window.Storage) return [];
+      const ws = Storage.getWorkouts();
+      const out = [];
+      for (const w of ws) {
+        if (!Array.isArray(w.sets)) continue;
+        const sets = w.sets.filter(s => s.exerciseId === id && !s.skipped);
+        if (sets.length === 0) continue;
+        let best1RM = 0, bestReps = 0, bestTime = 0, tonnage = 0;
+        for (const s of sets) {
+          const wgt = Number(s.weight) || 0;
+          const reps = Number(s.reps) || 0;
+          const t = Number(s.timeSec) || 0;
+          if (reps > 0) {
+            tonnage += wgt * reps;
+            if (wgt > 0) {
+              const oneRM = (window.Progression && window.Progression.epley1RM) ? window.Progression.epley1RM(wgt, reps) : wgt * (1 + reps / 30);
+              if (oneRM > best1RM) best1RM = oneRM;
+            }
+            if (reps > bestReps) bestReps = reps;
+          }
+          if (t > bestTime) bestTime = t;
+        }
+        const d = new Date(w.dateISO || w.date || w.startedAt || Date.now());
+        out.push({
+          workoutId: w.id,
+          ts: d.getTime(),
+          date: d,
+          dateShort: d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' }),
+          setsCount: sets.length,
+          best1RM: Math.round(best1RM * 10) / 10,
+          tonnage: Math.round(tonnage),
+          bestReps,
+          bestTime,
+        });
+      }
+      return out.sort((a, b) => a.ts - b.ts);
+    };
+
+    // Возвращает SVG path-string для линейного графика по указанному полю
+    base.buildChart = function (data, field) {
+      if (!data || data.length === 0) return { points: '', pathD: '', minY: 0, maxY: 0, ticks: [] };
+      const W = 300, H = 120;
+      const values = data.map(d => Number(d[field]) || 0);
+      const minY = Math.min(0, Math.min(...values));
+      const maxY = Math.max(...values);
+      const rangeY = (maxY - minY) || 1;
+      const stepX = data.length > 1 ? W / (data.length - 1) : 0;
+      const pts = data.map((d, i) => {
+        const x = i * stepX;
+        const y = H - ((d[field] - minY) / rangeY) * (H - 10) - 5;
+        return { x, y, raw: d };
+      });
+      const pointsStr = pts.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+      const pathD = pts.map((p, i) => (i === 0 ? 'M' : 'L') + p.x.toFixed(1) + ' ' + p.y.toFixed(1)).join(' ');
+      // Ticks: первое и последнее значение + max
+      const maxIdx = values.indexOf(maxY);
+      const ticks = [
+        { x: pts[0].x, y: pts[0].y, label: values[0].toString(), align: 'start' },
+        { x: pts[pts.length - 1].x, y: pts[pts.length - 1].y, label: values[values.length - 1].toString(), align: 'end' },
+      ];
+      if (maxIdx !== 0 && maxIdx !== values.length - 1) {
+        ticks.push({ x: pts[maxIdx].x, y: pts[maxIdx].y, label: values[maxIdx].toString(), align: 'middle' });
+      }
+      return { points: pointsStr, pathD, minY, maxY, ticks, W, H, pts };
+    };
+
+    base.getProgressExercise = function () {
+      if (!this.progressExerciseId) return null;
+      return (window.Storage && Storage.getExerciseMerged) ? Storage.getExerciseMerged(this.progressExerciseId) : null;
+    };
+
+    base.getProgressPR = function () {
+      if (!this.progressExerciseId || !window.Storage) return null;
+      const prs = Storage.getPRs();
+      return prs[this.progressExerciseId] || null;
+    };
+
+    // ============ Labels ============
     base.energyTagsLabels = {
       shoulderPain: '🤕 Плечо',
       kneePain: '🤕 Колено',

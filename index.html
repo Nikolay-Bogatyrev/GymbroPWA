@@ -211,6 +211,22 @@
       </button>
     </div>
 
+    <!-- v2: Progress link -->
+    <button
+      type="button"
+      @click="goProgress()"
+      class="w-full bg-gray-800 hover:bg-gray-700 rounded-xl p-3 mb-4 flex items-center gap-3 border border-gray-700 active:scale-[0.99] transition-transform"
+    >
+      <div class="w-9 h-9 bg-purple-500/20 rounded-lg flex items-center justify-center shrink-0">
+        <i data-lucide="trending-up" class="w-5 h-5 text-purple-400"></i>
+      </div>
+      <div class="flex-1 text-left">
+        <p class="font-semibold text-sm">Прогресс упражнений</p>
+        <p class="text-[10px] text-gray-400">1RM, тоннаж, личные рекорды</p>
+      </div>
+      <i data-lucide="chevron-right" class="w-4 h-4 text-gray-400"></i>
+    </button>
+
     <!-- v2: Сегодня по программе -->
     <template x-if="todayPlanV2">
       <div class="bg-gray-800 rounded-2xl p-4 mb-4 border border-gray-700">
@@ -2105,6 +2121,177 @@
   </div>
   </template>
 
+  <!-- ========== v2 СТРАНИЦА: ПРОГРЕСС ========== -->
+  <template x-if="page === 'progress'">
+  <div class="min-h-screen p-4 pb-24">
+    <div class="flex items-center gap-3 mb-4">
+      <button type="button"
+              @click="progressExerciseId ? (progressExerciseId = null) : (page = 'dashboard')"
+              class="p-2 hover:bg-gray-800 rounded-lg">
+        <i data-lucide="chevron-left" class="w-6 h-6"></i>
+      </button>
+      <h1 class="text-xl font-bold flex-1"
+          x-text="progressExerciseId ? (getProgressExercise()?.name || 'Упражнение') : 'Прогресс упражнений'"></h1>
+    </div>
+
+    <!-- Список упражнений с историей -->
+    <template x-if="!progressExerciseId">
+      <div>
+        <template x-if="getExercisesWithHistory().length === 0">
+          <div class="bg-gray-800 rounded-2xl p-6 text-center text-gray-400">
+            <i data-lucide="trending-up" class="w-10 h-10 inline mb-2 text-purple-400/60"></i>
+            <p class="text-sm">Пока нет данных. Запиши хотя бы одну тренировку, и здесь появятся графики.</p>
+          </div>
+        </template>
+
+        <div class="space-y-2">
+          <template x-for="ex in getExercisesWithHistory()" :key="ex.id">
+            <button type="button"
+                    @click="openProgressExercise(ex.id)"
+                    class="w-full bg-gray-800 hover:bg-gray-700 rounded-xl p-3 flex items-center gap-3 text-left">
+              <div class="flex-1 min-w-0">
+                <p class="font-semibold truncate" x-text="ex.name"></p>
+                <p class="text-xs text-gray-400">
+                  <span x-text="ex.sessionsCount"></span> тренировок
+                  <template x-if="ex.last">
+                    <span> · последняя <span x-text="ex.last.dateShort"></span></span>
+                  </template>
+                </p>
+              </div>
+              <div class="text-right shrink-0">
+                <template x-if="ex.type === 'weighted_reps' && ex.last && ex.last.best1RM">
+                  <p class="text-sm font-bold text-purple-300" x-text="ex.last.best1RM + ' кг'"></p>
+                </template>
+                <template x-if="ex.type === 'bodyweight_reps' && ex.last">
+                  <p class="text-sm font-bold text-purple-300" x-text="ex.last.bestReps + ' повт'"></p>
+                </template>
+                <template x-if="(ex.type === 'time_only' || ex.type === 'weighted_time') && ex.last">
+                  <p class="text-sm font-bold text-purple-300" x-text="ex.last.bestTime + ' сек'"></p>
+                </template>
+                <p class="text-[10px] text-gray-500">последний рекорд</p>
+              </div>
+              <i data-lucide="chevron-right" class="w-4 h-4 text-gray-400 shrink-0"></i>
+            </button>
+          </template>
+        </div>
+      </div>
+    </template>
+
+    <!-- Деталь упражнения -->
+    <template x-if="progressExerciseId && getProgressExercise()">
+      <div class="space-y-4">
+        <!-- PR -->
+        <template x-if="getProgressPR()">
+          <div class="bg-amber-500/10 border border-amber-500/40 rounded-xl p-3">
+            <p class="text-xs text-amber-300 uppercase tracking-wide mb-1">🏆 Личный рекорд</p>
+            <template x-if="getProgressPR().metric === '1rm'">
+              <p class="text-2xl font-bold text-amber-200">
+                <span x-text="Math.round(getProgressPR().value * 10) / 10"></span> кг <span class="text-sm text-amber-300/70">1RM (Эпли)</span>
+              </p>
+            </template>
+            <template x-if="getProgressPR().metric === 'maxReps'">
+              <p class="text-2xl font-bold text-amber-200">
+                <span x-text="getProgressPR().value"></span> повторений
+              </p>
+            </template>
+            <template x-if="getProgressPR().metric === 'maxTimeSec'">
+              <p class="text-2xl font-bold text-amber-200">
+                <span x-text="getProgressPR().value"></span> сек
+              </p>
+            </template>
+            <p class="text-[10px] text-amber-100/60 mt-1">
+              <span x-text="new Date(getProgressPR().date).toLocaleDateString('ru-RU')"></span>
+            </p>
+          </div>
+        </template>
+
+        <!-- График по основной метрике -->
+        <template x-if="getExerciseSessionData(progressExerciseId).length >= 1">
+          <div class="bg-gray-800 rounded-xl p-3">
+            <div class="flex items-center justify-between mb-2">
+              <p class="text-sm font-semibold">
+                <template x-if="getProgressExercise().type === 'weighted_reps'">1RM по сессиям</template>
+                <template x-if="getProgressExercise().type === 'bodyweight_reps'">Лучшие повторения</template>
+                <template x-if="getProgressExercise().type === 'time_only' || getProgressExercise().type === 'weighted_time'">Лучшее время (сек)</template>
+              </p>
+              <p class="text-xs text-gray-400">
+                <span x-text="getExerciseSessionData(progressExerciseId).length"></span> точек
+              </p>
+            </div>
+            <svg viewBox="0 0 300 130" class="w-full" preserveAspectRatio="none" style="height: 140px;">
+              <template x-if="getProgressExercise().type === 'weighted_reps'">
+                <g>
+                  <path :d="buildChart(getExerciseSessionData(progressExerciseId), 'best1RM').pathD"
+                        fill="none" stroke="#a78bfa" stroke-width="2" />
+                  <template x-for="(p, i) in buildChart(getExerciseSessionData(progressExerciseId), 'best1RM').pts" :key="i">
+                    <circle :cx="p.x" :cy="p.y" r="2.5" fill="#c4b5fd" />
+                  </template>
+                </g>
+              </template>
+              <template x-if="getProgressExercise().type === 'bodyweight_reps'">
+                <g>
+                  <path :d="buildChart(getExerciseSessionData(progressExerciseId), 'bestReps').pathD"
+                        fill="none" stroke="#a78bfa" stroke-width="2" />
+                  <template x-for="(p, i) in buildChart(getExerciseSessionData(progressExerciseId), 'bestReps').pts" :key="i">
+                    <circle :cx="p.x" :cy="p.y" r="2.5" fill="#c4b5fd" />
+                  </template>
+                </g>
+              </template>
+              <template x-if="getProgressExercise().type === 'time_only' || getProgressExercise().type === 'weighted_time'">
+                <g>
+                  <path :d="buildChart(getExerciseSessionData(progressExerciseId), 'bestTime').pathD"
+                        fill="none" stroke="#a78bfa" stroke-width="2" />
+                  <template x-for="(p, i) in buildChart(getExerciseSessionData(progressExerciseId), 'bestTime').pts" :key="i">
+                    <circle :cx="p.x" :cy="p.y" r="2.5" fill="#c4b5fd" />
+                  </template>
+                </g>
+              </template>
+            </svg>
+          </div>
+        </template>
+
+        <!-- График тоннажа (только для weighted_reps) -->
+        <template x-if="getProgressExercise().type === 'weighted_reps' && getExerciseSessionData(progressExerciseId).length >= 1">
+          <div class="bg-gray-800 rounded-xl p-3">
+            <p class="text-sm font-semibold mb-2">Тоннаж (вес × повторы), кг</p>
+            <svg viewBox="0 0 300 130" class="w-full" preserveAspectRatio="none" style="height: 140px;">
+              <path :d="buildChart(getExerciseSessionData(progressExerciseId), 'tonnage').pathD"
+                    fill="none" stroke="#34d399" stroke-width="2" />
+              <template x-for="(p, i) in buildChart(getExerciseSessionData(progressExerciseId), 'tonnage').pts" :key="i">
+                <circle :cx="p.x" :cy="p.y" r="2.5" fill="#6ee7b7" />
+              </template>
+            </svg>
+          </div>
+        </template>
+
+        <!-- История сессий -->
+        <div class="bg-gray-800 rounded-xl p-3">
+          <p class="text-sm font-semibold mb-2">История</p>
+          <div class="space-y-1">
+            <template x-for="s in getExerciseSessionData(progressExerciseId).slice().reverse()" :key="s.workoutId">
+              <div class="flex items-center justify-between py-1.5 border-b border-gray-700 last:border-0 text-sm">
+                <span class="text-gray-300" x-text="s.dateShort"></span>
+                <span class="text-xs text-gray-400">
+                  <span x-text="s.setsCount"></span> подх
+                  <template x-if="getProgressExercise().type === 'weighted_reps'">
+                    <span> · 1RM <span x-text="s.best1RM"></span> кг · тонн <span x-text="s.tonnage"></span></span>
+                  </template>
+                  <template x-if="getProgressExercise().type === 'bodyweight_reps'">
+                    <span> · max <span x-text="s.bestReps"></span> повт</span>
+                  </template>
+                  <template x-if="getProgressExercise().type === 'time_only' || getProgressExercise().type === 'weighted_time'">
+                    <span> · max <span x-text="s.bestTime"></span> сек</span>
+                  </template>
+                </span>
+              </div>
+            </template>
+          </div>
+        </div>
+      </div>
+    </template>
+  </div>
+  </template>
+
   <!-- Scripts - ПОРЯДОК ВАЖЕН! -->
   <!-- v1 совместимость -->
   <script src="./js/data.js"></script>
@@ -2128,11 +2315,26 @@
     document.addEventListener('alpine:initialized', () => {
       console.log('Alpine initialized, creating icons...');
       lucide.createIcons();
-      
+
+      // Узкий observer: триггерим createIcons ТОЛЬКО когда в DOM добавляется
+      // элемент с data-lucide. Это избавляет от каскадных перерисовок
+      // (createIcons меняет DOM → observer → createIcons → …) и лагов кликов.
       var createIconsTimer;
-      const observer = new MutationObserver(() => {
-        clearTimeout(createIconsTimer);
-        createIconsTimer = setTimeout(() => lucide.createIcons(), 50);
+      function hasLucideNode(node) {
+        if (!node || node.nodeType !== 1) return false;
+        if (node.hasAttribute && node.hasAttribute('data-lucide')) return true;
+        return !!(node.querySelector && node.querySelector('[data-lucide]'));
+      }
+      const observer = new MutationObserver((mutations) => {
+        for (const m of mutations) {
+          for (const node of m.addedNodes) {
+            if (hasLucideNode(node)) {
+              clearTimeout(createIconsTimer);
+              createIconsTimer = setTimeout(() => lucide.createIcons(), 80);
+              return;
+            }
+          }
+        }
       });
       observer.observe(document.body, { childList: true, subtree: true });
     });
