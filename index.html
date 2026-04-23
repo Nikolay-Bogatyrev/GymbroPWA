@@ -62,12 +62,17 @@
         <h1 class="text-2xl font-bold">GymBro</h1>
         <p class="text-gray-400 text-sm">Привет, <span x-text="profile.name"></span>! 👋</p>
       </div>
-      <div class="text-right">
-        <p class="text-sm text-gray-400">Стрик</p>
-        <p class="text-2xl font-bold text-orange-400 flex items-center gap-1">
-          <i data-lucide="flame" class="w-5 h-5"></i>
-          <span x-text="stats.streak"></span>
-        </p>
+      <div class="flex items-center gap-3">
+        <div class="text-right">
+          <p class="text-sm text-gray-400">Стрик</p>
+          <p class="text-2xl font-bold text-orange-400 flex items-center gap-1">
+            <i data-lucide="flame" class="w-5 h-5"></i>
+            <span x-text="stats.streak"></span>
+          </p>
+        </div>
+        <button type="button" @click="goSettings()" class="p-2 hover:bg-gray-800 rounded-lg" title="Настройки">
+          <i data-lucide="settings-2" class="w-5 h-5 text-gray-400"></i>
+        </button>
       </div>
     </div>
 
@@ -1454,11 +1459,29 @@
   <!-- ========== v2 СТРАНИЦА: REST (v2) ========== -->
   <template x-if="page === 'rest-v2'">
   <div class="min-h-screen p-4 pb-24 flex flex-col items-center justify-center">
-    <p class="text-sm text-gray-400 uppercase tracking-wide mb-2"
+    <p class="text-sm text-gray-400 uppercase tracking-wide mb-4"
        x-text="restType2 === 'exercise' ? 'Отдых перед упражнением' : 'Отдых между подходами'"></p>
-    <p class="text-7xl font-bold tabular-nums my-6"
-       :class="restRemaining2 <= 5 ? 'text-amber-400' : 'text-white'"
-       x-text="formatRest(restRemaining2)"></p>
+
+    <!-- Большой круг с цифрой -->
+    <div class="relative w-56 h-56 mb-6">
+      <svg viewBox="0 0 100 100" class="w-full h-full -rotate-90">
+        <circle cx="50" cy="50" r="46" stroke="#374151" stroke-width="6" fill="none" />
+        <circle cx="50" cy="50" r="46"
+                :stroke="restRemaining2 <= 5 ? '#f59e0b' : '#10b981'"
+                stroke-width="6" fill="none"
+                stroke-linecap="round"
+                stroke-dasharray="289"
+                :stroke-dashoffset="289 - (289 * restProgressPct() / 100)"
+                style="transition: stroke-dashoffset 0.5s linear;" />
+      </svg>
+      <div class="absolute inset-0 flex flex-col items-center justify-center">
+        <p class="text-6xl font-bold tabular-nums"
+           :class="restRemaining2 <= 5 ? 'text-amber-400' : 'text-white'"
+           x-text="formatRest(restRemaining2)"></p>
+        <p class="text-xs text-gray-400" x-text="'из ' + formatRest(restTotal2)"></p>
+      </div>
+    </div>
+
     <div class="flex gap-2 mb-6">
       <button type="button" @click="addRestSec(-15)"
               class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-xl text-sm">−15</button>
@@ -1480,6 +1503,132 @@
           x-text="(session2.items[session2.currentItemIndex + 1] && (Storage.getExerciseMerged(session2.items[session2.currentItemIndex + 1].exerciseId)?.name)) || 'Финиш'"></span>
       </p>
     </template>
+  </div>
+  </template>
+
+  <!-- ========== v2 СТРАНИЦА: НАСТРОЙКИ ========== -->
+  <template x-if="page === 'settings'">
+  <div class="min-h-screen p-4 pb-24">
+    <div class="flex items-center gap-3 mb-4">
+      <button type="button" @click="page = 'dashboard'" class="p-2 hover:bg-gray-800 rounded-lg">
+        <i data-lucide="chevron-left" class="w-6 h-6"></i>
+      </button>
+      <h1 class="text-xl font-bold">Настройки</h1>
+    </div>
+
+    <!-- Звук и вибрация -->
+    <div class="bg-gray-800 rounded-2xl p-4 mb-3 space-y-3">
+      <h3 class="text-xs uppercase tracking-wide text-gray-400">Уведомления таймера</h3>
+
+      <label class="flex items-center justify-between gap-3 py-2">
+        <div>
+          <p class="font-semibold">Звук</p>
+          <p class="text-xs text-gray-400">Бип за 3 сек до конца и в момент окончания</p>
+        </div>
+        <input type="checkbox" x-model="settings.sound" @change="saveSettings()"
+               class="w-5 h-5" />
+      </label>
+
+      <label class="flex items-center justify-between gap-3 py-2">
+        <div>
+          <p class="font-semibold">Вибрация</p>
+          <p class="text-xs text-gray-400">При окончании отдыха (если поддерживается устройством)</p>
+        </div>
+        <input type="checkbox" x-model="settings.vibration" @change="saveSettings()"
+               class="w-5 h-5" />
+      </label>
+
+      <label class="flex items-center justify-between gap-3 py-2">
+        <div>
+          <p class="font-semibold">Wake Lock</p>
+          <p class="text-xs text-gray-400">Не давать экрану гаснуть во время тренировки</p>
+        </div>
+        <input type="checkbox" x-model="settings.wakeLockOnWorkout" @change="saveSettings()"
+               class="w-5 h-5" />
+      </label>
+
+      <div class="pt-2">
+        <label class="text-sm text-gray-300 mb-2 block">
+          Частота бипа: <span class="font-bold tabular-nums" x-text="settings.beepFreqHz"></span> Гц
+        </label>
+        <input type="range" min="440" max="1760" step="20"
+               x-model.number="settings.beepFreqHz" @change="saveSettings()"
+               class="w-full" />
+        <div class="flex justify-between text-xs text-gray-500 mt-1">
+          <span>низкий</span>
+          <span>высокий</span>
+        </div>
+      </div>
+
+      <button type="button" @click="testBeep()"
+              class="w-full bg-blue-500 hover:bg-blue-600 rounded-xl py-2 text-sm font-semibold">
+        🔊 Проверить звук + вибрацию
+      </button>
+    </div>
+
+    <!-- Дефолты отдыха -->
+    <div class="bg-gray-800 rounded-2xl p-4 mb-3 space-y-4">
+      <h3 class="text-xs uppercase tracking-wide text-gray-400">Отдых по умолчанию</h3>
+
+      <div>
+        <label class="text-sm text-gray-300 mb-1 block">
+          Между подходами: <span class="font-bold tabular-nums" x-text="settings.defaultRestSetSec"></span> сек
+        </label>
+        <input type="range" min="15" max="240" step="5"
+               x-model.number="settings.defaultRestSetSec" @change="saveSettings()"
+               class="w-full" />
+      </div>
+
+      <div>
+        <label class="text-sm text-gray-300 mb-1 block">
+          Между упражнениями: <span class="font-bold tabular-nums" x-text="settings.defaultRestExerciseSec"></span> сек
+        </label>
+        <input type="range" min="30" max="300" step="5"
+               x-model.number="settings.defaultRestExerciseSec" @change="saveSettings()"
+               class="w-full" />
+      </div>
+
+      <p class="text-xs text-gray-500">
+        Конкретное упражнение в шаблоне может переопределить эти значения через свой restSec.
+      </p>
+    </div>
+
+    <!-- Профиль -->
+    <div class="bg-gray-800 rounded-2xl p-4 mb-3">
+      <h3 class="text-xs uppercase tracking-wide text-gray-400 mb-2">Профиль</h3>
+      <div class="grid grid-cols-2 gap-2">
+        <div>
+          <label class="text-xs text-gray-400 mb-1 block">Имя</label>
+          <input type="text" x-model="profile.name"
+                 @change="window.Storage && Storage.saveSettings && Storage.saveSettings({ profileName: profile.name })"
+                 class="w-full bg-gray-700 rounded-lg px-2 py-2 text-sm" />
+        </div>
+        <div>
+          <label class="text-xs text-gray-400 mb-1 block">Возраст</label>
+          <input type="number" x-model.number="profile.age"
+                 @change="calculateHRZones()"
+                 class="w-full bg-gray-700 rounded-lg px-2 py-2 text-sm" />
+        </div>
+      </div>
+      <p class="text-xs text-gray-500 mt-2">
+        Возраст пересчитывает пульсовые зоны (Макс, жиросжигание, интервал).
+      </p>
+    </div>
+
+    <!-- Сервис -->
+    <div class="bg-gray-800 rounded-2xl p-4 mb-3 space-y-2">
+      <h3 class="text-xs uppercase tracking-wide text-gray-400">Сервис</h3>
+      <p class="text-xs text-gray-400">
+        Schema v<span x-text="(window.Storage && Storage.SCHEMA_VERSION) || '?'"></span> ·
+        Тренировок в логе: <span x-text="(window.Storage && Storage.getWorkouts && Storage.getWorkouts().length) || 0"></span> ·
+        Программ: <span x-text="programsList.length"></span> ·
+        Трекеров: <span x-text="trackersList.length"></span>
+      </p>
+      <p class="text-xs text-gray-500">
+        Бэкап старых данных (v1) лежит в localStorage под ключом
+        <code class="bg-gray-700 px-1 rounded">gym_backup_v1</code>.
+      </p>
+    </div>
   </div>
   </template>
 

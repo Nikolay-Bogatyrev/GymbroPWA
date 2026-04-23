@@ -102,6 +102,16 @@
       originalInit.call(this);
       this.reloadV2State();
       this.v2Ready = true;
+
+      // Unlock Web Audio при первом тапе/клике (нужно для iOS)
+      const onceUnlock = () => {
+        if (window.GymTimer && GymTimer.unlockAudio) GymTimer.unlockAudio();
+        document.removeEventListener('click', onceUnlock);
+        document.removeEventListener('touchstart', onceUnlock);
+      };
+      document.addEventListener('click', onceUnlock, { once: true });
+      document.addEventListener('touchstart', onceUnlock, { once: true });
+
       console.log('🚀 app-v2 ready');
     };
 
@@ -112,6 +122,7 @@
       this.templates = (window.PROGRAMS && PROGRAMS.getAllTemplates) ? PROGRAMS.getAllTemplates() : [];
       this.todayPlanV2 = (window.PROGRAMS && PROGRAMS.getPlanForDate) ? PROGRAMS.getPlanForDate(new Date()) : null;
       this.trackersList = Storage.getTrackers();
+      this.settings = Storage.getSettings();
     };
 
     // ====== НАВИГАЦИЯ ======
@@ -267,7 +278,9 @@
 
       // unlock audio для будущего таймера
       if (window.GymTimer && window.GymTimer.unlockAudio) window.GymTimer.unlockAudio();
-      if (window.GymTimer && window.GymTimer.requestWakeLock) window.GymTimer.requestWakeLock();
+      if (this.settings && this.settings.wakeLockOnWorkout !== false) {
+        if (window.GymTimer && window.GymTimer.requestWakeLock) window.GymTimer.requestWakeLock();
+      }
     };
 
     // ============ Workflow v2: текущее упражнение ============
@@ -381,10 +394,11 @@
       }
     };
 
-    // ============ Отдых v2 (пока через простой setInterval — заменим в 4/4) ============
+    // ============ Отдых v2 (Web Audio + Vibration + drift-free) ============
     base.restRemaining2 = 0;
     base.restType2 = 'set';
-    base._restIntervalId = null;
+    base.restTotal2 = 0;
+    base._restController = null;
 
     base.startRestV2 = function (type) {
       this.stopRestV2();
@@ -394,37 +408,109 @@
         ? (it?.restSec ? Math.max(it.restSec, settings.defaultRestExerciseSec) : settings.defaultRestExerciseSec)
         : (it?.restSec || settings.defaultRestSetSec);
       this.restRemaining2 = sec;
+      this.restTotal2 = sec;
       this.restType2 = type;
       this.page = 'rest-v2';
+
       const self = this;
-      this._restIntervalId = setInterval(() => {
-        self.restRemaining2--;
-        if (self.restRemaining2 <= 0) self.endRestV2();
-      }, 1000);
+      if (window.GymTimer && GymTimer.createRestTimer) {
+        // Бип старта — короткий низкий
+        if (settings.sound !== false) {
+          GymTimer.beep({ freq: (settings.beepFreqHz || 880) - 220, durationMs: 80, gain: 0.10 });
+        }
+        this._restController = GymTimer.createRestTimer({
+          durationSec: sec,
+          onTick: (s) => {
+            self.restRemaining2 = s;
+            self.restTotal2 = self._restController ? self._restController.getTotalSec() : sec;
+          },
+          onWarn3: () => {
+            // визуальный пульс — отрабатывается классом, ничего не нужно
+          },
+          onEnd: () => {
+            self._restController = null;
+            self.endRestV2();
+          },
+        });
+        this._restController.start();
+      } else {
+        // Fallback на setInterval (если timer.js не загружен)
+        this._restController = { _i: setInterval(() => {
+          self.restRemaining2--;
+          if (self.restRemaining2 <= 0) {
+            clearInterval(self._restController._i);
+            self._restController = null;
+            self.endRestV2();
+          }
+        }, 1000), cancel() { clearInterval(this._i); }, add(s) { /* no-op */ } };
+      }
     };
 
     base.stopRestV2 = function () {
-      if (this._restIntervalId) {
-        clearInterval(this._restIntervalId);
-        this._restIntervalId = null;
+      if (this._restController) {
+        try { this._restController.cancel(); } catch (e) {}
+        this._restController = null;
       }
     };
 
     base.skipRestV2 = function () {
+      this.stopRestV2();
       this.endRestV2();
     };
 
     base.addRestSec = function (delta) {
-      this.restRemaining2 = Math.max(1, this.restRemaining2 + delta);
+      if (this._restController && this._restController.add) {
+        this._restController.add(delta);
+        // обновим визуально сразу
+        if (this._restController.getRemainingSec) {
+          this.restRemaining2 = this._restController.getRemainingSec();
+          this.restTotal2 = this._restController.getTotalSec();
+        }
+      } else {
+        this.restRemaining2 = Math.max(1, this.restRemaining2 + delta);
+      }
+    };
+
+    base.restProgressPct = function () {
+      if (!this.restTotal2) return 0;
+      return Math.max(0, Math.min(100, ((this.restTotal2 - this.restRemaining2) / this.restTotal2) * 100));
     };
 
     base.endRestV2 = function () {
-      this.stopRestV2();
       if (this.restType2 === 'exercise') {
         this.advanceToNextItem();
       } else {
         this.page = 'workout-v2';
       }
+    };
+
+    // ============ НАСТРОЙКИ ============
+    base.settings = { sound: true, vibration: true, defaultRestSetSec: 60, defaultRestExerciseSec: 120, beepFreqHz: 880, wakeLockOnWorkout: true };
+    base.loadSettings = function () {
+      if (window.Storage && Storage.getSettings) {
+        this.settings = Storage.getSettings();
+      }
+    };
+    base.saveSettings = function () {
+      if (window.Storage && Storage.saveSettings) {
+        Storage.saveSettings({ ...this.settings });
+      }
+    };
+    base.testBeep = function () {
+      if (window.GymTimer) {
+        GymTimer.unlockAudio();
+        GymTimer.beep({ freq: this.settings.beepFreqHz || 880, durationMs: 350, gain: 0.18 });
+        if (this.settings.vibration) GymTimer.vibrate([200, 80, 200]);
+      }
+    };
+    base.goSettings = function () {
+      this.loadSettings();
+      this.page = 'settings';
+    };
+
+    // Unlock audio при первом тапе на body — нужно для iOS
+    base.unlockAudioOnce = function () {
+      if (window.GymTimer && GymTimer.unlockAudio) GymTimer.unlockAudio();
     };
 
     // ============ Time-only / weighted_time секундомер для draft ============
