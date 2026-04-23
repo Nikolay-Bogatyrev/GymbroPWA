@@ -163,32 +163,45 @@
       <i data-lucide="chevron-right" class="w-6 h-6"></i>
     </button>
 
-    <!-- v2: Programs + Bank nav -->
-    <div class="grid grid-cols-2 gap-3 mb-4">
+    <!-- v2: Programs + Bank + Trackers nav -->
+    <div class="grid grid-cols-3 gap-2 mb-4">
       <button
         type="button"
         @click="goPrograms()"
-        class="bg-gray-800 hover:bg-gray-700 rounded-2xl p-4 flex flex-col items-start gap-2 active:scale-[0.98] transition-transform border border-gray-700"
+        class="bg-gray-800 hover:bg-gray-700 rounded-2xl p-3 flex flex-col items-start gap-2 active:scale-[0.98] transition-transform border border-gray-700"
       >
-        <div class="w-10 h-10 bg-emerald-500/20 rounded-lg flex items-center justify-center">
+        <div class="w-9 h-9 bg-emerald-500/20 rounded-lg flex items-center justify-center">
           <i data-lucide="calendar-days" class="w-5 h-5 text-emerald-400"></i>
         </div>
         <div class="text-left">
-          <p class="font-semibold">Программы</p>
-          <p class="text-xs text-gray-400" x-text="activeProgram ? activeProgram.name : 'Не выбрана'"></p>
+          <p class="font-semibold text-sm">Программы</p>
+          <p class="text-[10px] text-gray-400 truncate w-full" x-text="activeProgram ? activeProgram.name : 'Не выбрана'"></p>
         </div>
       </button>
       <button
         type="button"
         @click="goBank()"
-        class="bg-gray-800 hover:bg-gray-700 rounded-2xl p-4 flex flex-col items-start gap-2 active:scale-[0.98] transition-transform border border-gray-700"
+        class="bg-gray-800 hover:bg-gray-700 rounded-2xl p-3 flex flex-col items-start gap-2 active:scale-[0.98] transition-transform border border-gray-700"
       >
-        <div class="w-10 h-10 bg-indigo-500/20 rounded-lg flex items-center justify-center">
+        <div class="w-9 h-9 bg-indigo-500/20 rounded-lg flex items-center justify-center">
           <i data-lucide="library" class="w-5 h-5 text-indigo-400"></i>
         </div>
         <div class="text-left">
-          <p class="font-semibold">Банк упражнений</p>
-          <p class="text-xs text-gray-400"><span x-text="(window.EXERCISE_BANK||[]).length"></span> упражнений</p>
+          <p class="font-semibold text-sm">Банк</p>
+          <p class="text-[10px] text-gray-400"><span x-text="(window.EXERCISE_BANK||[]).length"></span> упр</p>
+        </div>
+      </button>
+      <button
+        type="button"
+        @click="goTrackers()"
+        class="bg-gray-800 hover:bg-gray-700 rounded-2xl p-3 flex flex-col items-start gap-2 active:scale-[0.98] transition-transform border border-gray-700"
+      >
+        <div class="w-9 h-9 bg-amber-500/20 rounded-lg flex items-center justify-center">
+          <i data-lucide="target" class="w-5 h-5 text-amber-400"></i>
+        </div>
+        <div class="text-left">
+          <p class="font-semibold text-sm">Трекеры</p>
+          <p class="text-[10px] text-gray-400"><span x-text="trackersList.length"></span> привычек</p>
         </div>
       </button>
     </div>
@@ -1099,16 +1112,37 @@
                     </p>
                   </template>
                 </div>
-                <!-- video -->
-                <template x-if="getTemplateItemExercise(item) && getExerciseVideoUrlV2(getTemplateItemExercise(item))">
-                  <a :href="getExerciseVideoUrlV2(getTemplateItemExercise(item))"
-                     target="_blank" rel="noopener"
-                     class="p-2 hover:bg-gray-700 rounded-lg shrink-0"
-                     title="Посмотреть видео">
-                    <i data-lucide="play-circle" class="w-5 h-5 text-red-400"></i>
+                <!-- video toggle -->
+                <template x-if="getTemplateItemExercise(item) && getExerciseEmbedUrl(getTemplateItemExercise(item))">
+                  <button type="button"
+                          @click="toggleInlineVideo(item.exerciseId)"
+                          class="p-2 hover:bg-gray-700 rounded-lg shrink-0"
+                          title="Видео">
+                    <i :data-lucide="isInlineVideoOpen(item.exerciseId) ? 'x' : 'play-circle'"
+                       class="w-5 h-5"
+                       :class="isInlineVideoOpen(item.exerciseId) ? 'text-gray-300' : 'text-red-400'"></i>
+                  </button>
+                </template>
+                <template x-if="getTemplateItemExercise(item) && !getExerciseEmbedUrl(getTemplateItemExercise(item)) && getExerciseSearchUrl(getTemplateItemExercise(item))">
+                  <a :href="getExerciseSearchUrl(getTemplateItemExercise(item))" target="_blank" rel="noopener"
+                     class="p-2 hover:bg-gray-700 rounded-lg shrink-0" title="Поиск видео">
+                    <i data-lucide="search" class="w-5 h-5 text-gray-400"></i>
                   </a>
                 </template>
               </div>
+
+              <!-- Inline player под карточкой -->
+              <template x-if="isInlineVideoOpen(item.exerciseId) && getExerciseEmbedUrl(getTemplateItemExercise(item))">
+                <div class="mt-3 bg-black rounded-lg overflow-hidden">
+                  <div class="relative" style="padding-bottom: 56.25%; height: 0;">
+                    <iframe :src="getExerciseEmbedUrl(getTemplateItemExercise(item))"
+                            class="absolute inset-0 w-full h-full"
+                            allow="autoplay; encrypted-media; picture-in-picture"
+                            allowfullscreen
+                            referrerpolicy="strict-origin-when-cross-origin"></iframe>
+                  </div>
+                </div>
+              </template>
             </div>
           </template>
         </div>
@@ -1198,11 +1232,43 @@
     <!-- Деталь упражнения -->
     <template x-if="bankSelectedId && getSelectedExercise()">
       <div class="space-y-3">
-        <template x-if="getExerciseVideoUrlV2(getSelectedExercise())">
-          <a :href="getExerciseVideoUrlV2(getSelectedExercise())" target="_blank" rel="noopener"
-             class="block bg-red-500/20 hover:bg-red-500/30 border border-red-500/40 rounded-xl p-3 text-center">
-            <i data-lucide="play-circle" class="w-6 h-6 inline text-red-400 mr-2"></i>
-            <span class="font-semibold text-red-200">Посмотреть видео на YouTube</span>
+        <!-- Inline player -->
+        <template x-if="getExerciseEmbedUrl(getSelectedExercise())">
+          <div>
+            <template x-if="!isInlineVideoOpen(bankSelectedId)">
+              <button type="button"
+                      @click="toggleInlineVideo(bankSelectedId)"
+                      class="block w-full bg-red-500/20 hover:bg-red-500/30 border border-red-500/40 rounded-xl p-3 text-center">
+                <i data-lucide="play-circle" class="w-6 h-6 inline text-red-400 mr-2"></i>
+                <span class="font-semibold text-red-200">Смотреть видео</span>
+              </button>
+            </template>
+            <template x-if="isInlineVideoOpen(bankSelectedId)">
+              <div class="bg-black rounded-xl overflow-hidden">
+                <div class="flex items-center justify-between px-3 py-2 bg-gray-900/80">
+                  <span class="text-sm text-gray-300">Видео упражнения</span>
+                  <button type="button" @click="closeInlineVideo()"
+                          class="p-1 hover:bg-gray-700 rounded">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                  </button>
+                </div>
+                <div class="relative" style="padding-bottom: 56.25%; height: 0;">
+                  <iframe :src="getExerciseEmbedUrl(getSelectedExercise())"
+                          class="absolute inset-0 w-full h-full"
+                          allow="autoplay; encrypted-media; picture-in-picture"
+                          allowfullscreen
+                          referrerpolicy="strict-origin-when-cross-origin"></iframe>
+                </div>
+              </div>
+            </template>
+          </div>
+        </template>
+        <!-- Если своего embed-видео нет, оставляем кнопку поиска -->
+        <template x-if="!getExerciseEmbedUrl(getSelectedExercise()) && getExerciseSearchUrl(getSelectedExercise())">
+          <a :href="getExerciseSearchUrl(getSelectedExercise())" target="_blank" rel="noopener"
+             class="block bg-gray-700 hover:bg-gray-600 rounded-xl p-3 text-center text-sm text-gray-300">
+            <i data-lucide="search" class="w-4 h-4 inline mr-2"></i>
+            Найти видео на YouTube
           </a>
         </template>
 
@@ -1254,6 +1320,205 @@
                  placeholder="https://www.youtube.com/watch?v=..."
                  class="w-full bg-gray-700 rounded-lg px-3 py-2 text-sm placeholder-gray-500" />
         </div>
+      </div>
+    </template>
+  </div>
+  </template>
+
+  <!-- ========== v2 СТРАНИЦА: ТРЕКЕРЫ ========== -->
+  <template x-if="page === 'trackers'">
+  <div class="min-h-screen p-4 pb-24">
+    <div class="flex items-center gap-3 mb-4">
+      <button type="button"
+              @click="trackerSelectedId ? (trackerSelectedId = null) : (page = 'dashboard')"
+              class="p-2 hover:bg-gray-800 rounded-lg">
+        <i data-lucide="chevron-left" class="w-6 h-6"></i>
+      </button>
+      <h1 class="text-xl font-bold flex-1"
+          x-text="trackerSelectedId ? (getSelectedTracker()?.name || 'Трекер') : 'Трекеры'"></h1>
+      <template x-if="!trackerSelectedId">
+        <button type="button"
+                @click="showNewTrackerForm = !showNewTrackerForm"
+                class="p-2 hover:bg-gray-800 rounded-lg" title="Новый трекер">
+          <i data-lucide="plus" class="w-5 h-5"></i>
+        </button>
+      </template>
+    </div>
+
+    <!-- Список трекеров -->
+    <template x-if="!trackerSelectedId">
+      <div>
+        <!-- Форма создания -->
+        <template x-if="showNewTrackerForm">
+          <div class="bg-gray-800 rounded-2xl p-4 mb-4 border border-amber-500/40">
+            <p class="text-sm text-gray-300 mb-3">Новая привычка</p>
+            <input type="text" x-model="newTrackerForm.name" placeholder="Например: Подтягивания"
+                   class="w-full bg-gray-700 rounded-lg px-3 py-2 text-sm mb-2" />
+            <div class="grid grid-cols-2 gap-2 mb-3">
+              <select x-model="newTrackerForm.type" class="bg-gray-700 rounded-lg px-2 py-2 text-sm">
+                <option value="daily_binary">Сделал/нет</option>
+                <option value="daily_count">С количеством</option>
+              </select>
+              <input type="text" x-model="newTrackerForm.icon" maxlength="2"
+                     class="bg-gray-700 rounded-lg px-2 py-2 text-sm text-center" placeholder="✅" />
+            </div>
+            <div class="flex gap-2">
+              <button type="button" @click="createTrackerFromForm()"
+                      class="flex-1 bg-amber-500 hover:bg-amber-600 text-gray-900 font-semibold rounded-lg py-2 text-sm">
+                Создать
+              </button>
+              <button type="button" @click="showNewTrackerForm = false"
+                      class="px-4 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm">
+                Отмена
+              </button>
+            </div>
+            <p class="text-[10px] text-gray-500 mt-2">
+              Примеры: «Подтягивания» (с количеством), «Зарядка 5 мин» (сделал/нет), «Растяжка», «Прогулка».
+            </p>
+          </div>
+        </template>
+
+        <template x-if="trackersList.length === 0 && !showNewTrackerForm">
+          <div class="bg-gray-800 rounded-2xl p-6 text-center text-gray-400">
+            <i data-lucide="target" class="w-10 h-10 inline mb-2 text-amber-400/60"></i>
+            <p class="text-sm">Нет трекеров. Нажми «+» вверху, чтобы создать первый.</p>
+            <p class="text-xs text-gray-500 mt-2">
+              Трекеры — для ежедневных привычек: подтягивания, зарядка, растяжка, прогулки.
+              Виден стрик и карта года.
+            </p>
+          </div>
+        </template>
+
+        <div class="space-y-2">
+          <template x-for="t in trackersList" :key="t.id">
+            <div class="bg-gray-800 rounded-2xl p-3 border"
+                 :class="isTrackerDoneToday(t) ? 'border-amber-500/50' : 'border-gray-700'">
+              <div class="flex items-center gap-3">
+                <button type="button"
+                        @click="t.type === 'daily_count' ? incrementTracker(t.id, 1) : markTrackerToday(t.id)"
+                        class="w-12 h-12 rounded-xl flex items-center justify-center text-xl shrink-0 transition-colors"
+                        :class="isTrackerDoneToday(t) ? 'bg-amber-500 text-gray-900' : 'bg-gray-700 hover:bg-gray-600'">
+                  <span x-text="t.icon || '✅'"></span>
+                </button>
+                <button type="button" @click="openTracker(t.id)"
+                        class="flex-1 text-left min-w-0">
+                  <p class="font-semibold truncate" x-text="t.name"></p>
+                  <p class="text-xs text-gray-400">
+                    🔥 <span x-text="getTrackerStreak(t)"></span> дней ·
+                    <span x-text="getTrackerTotal(t)"></span> всего
+                    <template x-if="t.type === 'daily_count'">
+                      <span> · сегодня <span x-text="getTrackerTodayValue(t) || 0"></span></span>
+                    </template>
+                  </p>
+                </button>
+                <template x-if="t.type === 'daily_count'">
+                  <div class="flex flex-col gap-1 shrink-0">
+                    <button type="button" @click="incrementTracker(t.id, 1)"
+                            class="w-7 h-7 bg-gray-700 hover:bg-gray-600 rounded text-xs">+</button>
+                    <button type="button" @click="incrementTracker(t.id, -1)"
+                            class="w-7 h-7 bg-gray-700 hover:bg-gray-600 rounded text-xs">−</button>
+                  </div>
+                </template>
+                <i data-lucide="chevron-right" class="w-4 h-4 text-gray-400 shrink-0"></i>
+              </div>
+            </div>
+          </template>
+        </div>
+      </div>
+    </template>
+
+    <!-- Деталь трекера -->
+    <template x-if="trackerSelectedId && getSelectedTracker()">
+      <div class="space-y-4">
+        <!-- Статистика -->
+        <div class="grid grid-cols-3 gap-2">
+          <div class="bg-gray-800 rounded-xl p-3 text-center">
+            <p class="text-xs text-gray-400">Стрик</p>
+            <p class="text-2xl font-bold text-amber-400" x-text="getTrackerStreak(getSelectedTracker())"></p>
+          </div>
+          <div class="bg-gray-800 rounded-xl p-3 text-center">
+            <p class="text-xs text-gray-400">Лучший</p>
+            <p class="text-2xl font-bold text-emerald-400" x-text="getTrackerBest(getSelectedTracker())"></p>
+          </div>
+          <div class="bg-gray-800 rounded-xl p-3 text-center">
+            <p class="text-xs text-gray-400">Всего</p>
+            <p class="text-2xl font-bold" x-text="getTrackerTotal(getSelectedTracker())"></p>
+          </div>
+        </div>
+
+        <template x-if="getSelectedTracker().type === 'daily_count'">
+          <div class="bg-gray-800 rounded-xl p-3 text-center">
+            <p class="text-xs text-gray-400">Суммарное количество</p>
+            <p class="text-3xl font-bold text-amber-300" x-text="getTrackerTotalCount(getSelectedTracker())"></p>
+          </div>
+        </template>
+
+        <!-- Кнопка отметки -->
+        <div class="flex gap-2">
+          <button type="button"
+                  @click="getSelectedTracker().type === 'daily_count' ? incrementTracker(trackerSelectedId, 1) : markTrackerToday(trackerSelectedId)"
+                  class="flex-1 bg-amber-500 hover:bg-amber-600 text-gray-900 font-bold rounded-xl py-3">
+            <span x-show="getSelectedTracker().type === 'daily_count'">+1 сегодня</span>
+            <span x-show="getSelectedTracker().type !== 'daily_count'"
+                  x-text="isTrackerDoneToday(getSelectedTracker()) ? 'Отменить сегодня' : 'Отметить сегодня'"></span>
+          </button>
+          <template x-if="getSelectedTracker().type === 'daily_count'">
+            <button type="button"
+                    @click="incrementTracker(trackerSelectedId, -1)"
+                    class="px-4 bg-gray-700 hover:bg-gray-600 rounded-xl">
+              −1
+            </button>
+          </template>
+        </div>
+
+        <!-- Бейджи -->
+        <div class="bg-gray-800 rounded-xl p-3">
+          <p class="text-xs text-gray-400 uppercase tracking-wide mb-2">Бейджи</p>
+          <div class="flex flex-wrap gap-2">
+            <template x-for="b in [7,30,100,365,730]" :key="b">
+              <div class="px-3 py-1 rounded-full text-xs font-semibold"
+                   :class="getTrackerBadges(getSelectedTracker()).includes(b) ?
+                           'bg-amber-500/30 text-amber-200' : 'bg-gray-700 text-gray-500'">
+                <span x-show="getTrackerBadges(getSelectedTracker()).includes(b)">🏆 </span>
+                <span x-text="b"></span> дн
+              </div>
+            </template>
+          </div>
+          <template x-if="getTrackerNextBadge(getSelectedTracker())">
+            <p class="text-xs text-gray-500 mt-2">
+              До следующего бейджа:
+              <span class="text-amber-300 font-semibold"
+                    x-text="(getTrackerNextBadge(getSelectedTracker()) - getTrackerTotal(getSelectedTracker())) + ' дн'"></span>
+            </p>
+          </template>
+        </div>
+
+        <!-- Карта года -->
+        <div class="bg-gray-800 rounded-xl p-3 overflow-x-auto">
+          <p class="text-xs text-gray-400 uppercase tracking-wide mb-2">Год</p>
+          <div class="grid gap-[2px]"
+               style="grid-template-columns: repeat(53, minmax(10px, 1fr)); grid-auto-flow: column; grid-template-rows: repeat(7, 10px);">
+            <template x-for="cell in getTrackerYearGrid(getSelectedTracker())" :key="cell.dateKey">
+              <div class="rounded-[2px]" style="width: 10px; height: 10px;"
+                   :class="{
+                     'bg-gray-700': cell.intensity === 0,
+                     'bg-amber-900': cell.intensity === 1,
+                     'bg-amber-700': cell.intensity === 2,
+                     'bg-amber-500': cell.intensity === 3,
+                     'bg-amber-300': cell.intensity === 4,
+                   }"
+                   :title="cell.dateKey + (cell.value ? ' · ' + cell.value : '')"></div>
+            </template>
+          </div>
+          <p class="text-[10px] text-gray-500 mt-2">365 дней назад → сегодня</p>
+        </div>
+
+        <!-- Удалить -->
+        <button type="button"
+                @click="deleteTrackerConfirm(trackerSelectedId)"
+                class="w-full bg-red-500/15 hover:bg-red-500/25 text-red-300 rounded-xl py-2 text-sm">
+          Удалить трекер
+        </button>
       </div>
     </template>
   </div>
