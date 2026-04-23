@@ -54,6 +54,7 @@ const PREHAB_TEMPLATE = {
   id: 'tpl-prehab',
   name: 'Prehab плеч (5 мин)',
   estimatedMinutes: 5,
+  isPrehab: true,
   items: [
     { exerciseId: 'band-pull-apart',         sets: 2, reps: 15, priority: 'A', supersetGroup: 'a', restSec: 30 },
     { exerciseId: 'face-pull',               sets: 2, reps: 12, priority: 'A', supersetGroup: 'a', restSec: 30, weight: 10 },
@@ -61,7 +62,40 @@ const PREHAB_TEMPLATE = {
   ],
 };
 
-const DEFAULT_TEMPLATES = [TEMPLATE_BEGINNER_FB_A, TEMPLATE_BEGINNER_FB_B, PREHAB_TEMPLATE];
+// ============ УТРЕННЯЯ ЗАРЯДКА (улица + турник) ============
+const TEMPLATE_DAILY_MORNING = {
+  id: 'tpl-daily-morning',
+  name: 'Утренняя зарядка (улица + турник)',
+  estimatedMinutes: 15,
+  isMorning: true,
+  items: [
+    // === Разминка (динамическая) ===
+    { exerciseId: 'jumping-jack',         sets: 1, timeSec: 40, priority: 'A', supersetGroup: null, restSec: 15 },
+    { exerciseId: 'neck-shoulder-rolls',  sets: 1, timeSec: 30, priority: 'A', supersetGroup: null, restSec: 10 },
+    { exerciseId: 'hip-circles',          sets: 1, timeSec: 30, priority: 'A', supersetGroup: null, restSec: 10 },
+    { exerciseId: 'leg-swings',           sets: 1, timeSec: 30, priority: 'A', supersetGroup: null, restSec: 10 },
+
+    // === Мобильность ===
+    { exerciseId: 'worlds-greatest-stretch', sets: 1, timeSec: 40, priority: 'B', supersetGroup: null, restSec: 10 },
+    { exerciseId: 'cat-cow',                 sets: 1, timeSec: 30, priority: 'B', supersetGroup: null, restSec: 10 },
+    { exerciseId: 'cobra-stretch',           sets: 1, timeSec: 30, priority: 'B', supersetGroup: null, restSec: 10 },
+
+    // === Сила (короткая) ===
+    { exerciseId: 'bar-hang',           sets: 2, timeSec: 20, priority: 'B', supersetGroup: null, restSec: 30 },
+    { exerciseId: 'pullup-pronated',    sets: 2, reps: 5,     priority: 'A', supersetGroup: null, restSec: 60 },
+    { exerciseId: 'pushup',             sets: 2, reps: 10,    priority: 'B', supersetGroup: null, restSec: 45 },
+    { exerciseId: 'squat-bodyweight',   sets: 2, reps: 15,    priority: 'B', supersetGroup: null, restSec: 30 },
+
+    // === Заминка / растяжка ===
+    { exerciseId: 'hamstring-stretch',     sets: 1, timeSec: 30, priority: 'C', supersetGroup: null, restSec: 5 },
+    { exerciseId: 'hip-flexor-stretch',    sets: 1, timeSec: 30, priority: 'C', supersetGroup: null, restSec: 5 },
+    { exerciseId: 'shoulder-pec-stretch',  sets: 1, timeSec: 30, priority: 'C', supersetGroup: null, restSec: 5 },
+    { exerciseId: 'calf-stretch',          sets: 1, timeSec: 30, priority: 'C', supersetGroup: null, restSec: 5 },
+    { exerciseId: 'child-pose',            sets: 1, timeSec: 30, priority: 'C', supersetGroup: null, restSec: 0 },
+  ],
+};
+
+const DEFAULT_TEMPLATES = [TEMPLATE_BEGINNER_FB_A, TEMPLATE_BEGINNER_FB_B, PREHAB_TEMPLATE, TEMPLATE_DAILY_MORNING];
 
 const PROGRAM_BEGINNER_FULL_BODY = {
   id: 'prog-beginner-fullbody',
@@ -115,6 +149,10 @@ function ensureDefaultProgram() {
   }
 }
 
+// id шаблона prehab — для автоматической вставки перед основной тренировкой
+const PREHAB_TEMPLATE_ID = 'tpl-prehab';
+const MORNING_TEMPLATE_ID = 'tpl-daily-morning';
+
 window.PROGRAMS = {
   ensureDefaultProgram,
   getTemplateById,
@@ -122,6 +160,9 @@ window.PROGRAMS = {
   getPlanForDate,
   DEFAULT_TEMPLATES,
   PROGRAM_BEGINNER_FULL_BODY,
+  PREHAB_TEMPLATE,
+  PREHAB_TEMPLATE_ID,
+  MORNING_TEMPLATE_ID,
 };
 
 console.log('📦 programs.js loaded');

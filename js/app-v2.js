@@ -210,6 +210,8 @@
     };
 
     // ============ Workflow v2: переходы ============
+    base.includePrehab = false; // чекбокс «добавить prehab плеч в начало»
+
     base.openEnergyPre = function (templateId) {
       this.energyPreTemplateId = templateId;
       this.energyPre = 6;
@@ -217,9 +219,22 @@
         shoulderPain: false, kneePain: false, backPain: false,
         lowSleep: false, stressed: false, fullEnergy: false, lowTime: false,
       };
+      // Авто-включаем prehab если шаблон содержит верх тела (по умолчанию true для основных тренировок,
+      // false для утренней зарядки и самого prehab)
+      const t = (window.PROGRAMS && PROGRAMS.getTemplateById) ? PROGRAMS.getTemplateById(templateId) : null;
+      const isPrehabTpl = t && (t.isPrehab || templateId === (window.PROGRAMS && PROGRAMS.PREHAB_TEMPLATE_ID));
+      const isMorningTpl = t && (t.isMorning || templateId === (window.PROGRAMS && PROGRAMS.MORNING_TEMPLATE_ID));
+      this.includePrehab = !isPrehabTpl && !isMorningTpl;
       this.energyAdjustments = [];
       this.recomputeEnergyPreview();
       this.page = 'energy-pre';
+    };
+
+    // При включении тэга shoulderPain — авто-включаем prehab
+    base.onTagChange = function (key, value) {
+      this.energyTags[key] = value;
+      if (key === 'shoulderPain' && value) this.includePrehab = true;
+      this.recomputeEnergyPreview();
     };
 
     base.recomputeEnergyPreview = function () {
@@ -239,13 +254,21 @@
     base.startWorkoutFromEnergy = function () {
       const t = (window.PROGRAMS && PROGRAMS.getTemplateById) ? PROGRAMS.getTemplateById(this.energyPreTemplateId) : null;
       if (!t) return;
+
+      // Базовые items + опционально prehab в начало
+      let baseItems = t.items.map(i => ({ ...i }));
+      if (this.includePrehab && window.PROGRAMS && PROGRAMS.PREHAB_TEMPLATE) {
+        const prehabItems = PROGRAMS.PREHAB_TEMPLATE.items.map(i => ({ ...i, _isPrehab: true }));
+        baseItems = prehabItems.concat(baseItems);
+      }
+
       const adjusted = window.EnergyRules
         ? EnergyRules.applyEnergyRules({
-            items: t.items.map(i => ({ ...i })),
+            items: baseItems,
             energy: this.energyPre,
             tags: this.energyTags,
           })
-        : { items: t.items.slice(), adjustments: [] };
+        : { items: baseItems, adjustments: [] };
 
       // Применяем подсказки прогрессии (если есть история)
       const itemsWithSuggestions = adjusted.items.map(it => {
