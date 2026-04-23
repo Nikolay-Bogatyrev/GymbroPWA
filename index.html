@@ -163,6 +163,65 @@
       <i data-lucide="chevron-right" class="w-6 h-6"></i>
     </button>
 
+    <!-- v2: Programs + Bank nav -->
+    <div class="grid grid-cols-2 gap-3 mb-4">
+      <button
+        type="button"
+        @click="goPrograms()"
+        class="bg-gray-800 hover:bg-gray-700 rounded-2xl p-4 flex flex-col items-start gap-2 active:scale-[0.98] transition-transform border border-gray-700"
+      >
+        <div class="w-10 h-10 bg-emerald-500/20 rounded-lg flex items-center justify-center">
+          <i data-lucide="calendar-days" class="w-5 h-5 text-emerald-400"></i>
+        </div>
+        <div class="text-left">
+          <p class="font-semibold">Программы</p>
+          <p class="text-xs text-gray-400" x-text="activeProgram ? activeProgram.name : 'Не выбрана'"></p>
+        </div>
+      </button>
+      <button
+        type="button"
+        @click="goBank()"
+        class="bg-gray-800 hover:bg-gray-700 rounded-2xl p-4 flex flex-col items-start gap-2 active:scale-[0.98] transition-transform border border-gray-700"
+      >
+        <div class="w-10 h-10 bg-indigo-500/20 rounded-lg flex items-center justify-center">
+          <i data-lucide="library" class="w-5 h-5 text-indigo-400"></i>
+        </div>
+        <div class="text-left">
+          <p class="font-semibold">Банк упражнений</p>
+          <p class="text-xs text-gray-400"><span x-text="(window.EXERCISE_BANK||[]).length"></span> упражнений</p>
+        </div>
+      </button>
+    </div>
+
+    <!-- v2: Сегодня по программе -->
+    <template x-if="todayPlanV2">
+      <div class="bg-gray-800 rounded-2xl p-4 mb-4 border border-gray-700">
+        <div class="flex items-center gap-2 mb-2">
+          <i data-lucide="target" class="w-5 h-5 text-emerald-400"></i>
+          <span class="font-semibold">Сегодня по программе</span>
+        </div>
+        <template x-if="todayPlanV2.isRest">
+          <p class="text-gray-400 text-sm">День отдыха. Можешь отметить прогулку или сделать лёгкую зарядку.</p>
+        </template>
+        <template x-if="!todayPlanV2.isRest && todayPlanV2.template">
+          <button
+            type="button"
+            @click="openTemplate(todayPlanV2.template.id)"
+            class="w-full text-left flex items-center justify-between"
+          >
+            <div>
+              <p class="font-semibold" x-text="todayPlanV2.template.name"></p>
+              <p class="text-xs text-gray-400">
+                <span x-text="todayPlanV2.template.items.length"></span> упражнений · ≈
+                <span x-text="todayPlanV2.template.estimatedMinutes"></span> мин
+              </p>
+            </div>
+            <i data-lucide="chevron-right" class="w-5 h-5 text-gray-400"></i>
+          </button>
+        </template>
+      </div>
+    </template>
+
     <!-- Recent Workouts -->
     <div class="bg-gray-800 rounded-2xl p-4">
       <h3 class="font-semibold mb-3 flex items-center gap-2">
@@ -924,11 +983,299 @@
   </div>
   </template>
 
+  <!-- ========== v2 СТРАНИЦА: ПРОГРАММЫ ========== -->
+  <template x-if="page === 'programs'">
+  <div class="min-h-screen p-4 pb-24">
+    <div class="flex items-center gap-3 mb-6">
+      <button type="button" @click="page = 'dashboard'" class="p-2 hover:bg-gray-800 rounded-lg">
+        <i data-lucide="chevron-left" class="w-6 h-6"></i>
+      </button>
+      <h1 class="text-xl font-bold">Программы</h1>
+    </div>
+
+    <template x-if="programsList.length === 0">
+      <p class="text-gray-400 text-sm">Пока нет программ. При первом запуске активируется «Beginner Full Body A/B».</p>
+    </template>
+
+    <div class="space-y-3 mb-6">
+      <template x-for="p in programsList" :key="p.id">
+        <div class="bg-gray-800 rounded-2xl p-4 border"
+             :class="(activeProgram && activeProgram.id === p.id) ? 'border-emerald-500' : 'border-gray-700'">
+          <div class="flex items-start justify-between gap-2 mb-3">
+            <div>
+              <p class="font-semibold" x-text="p.name"></p>
+              <p class="text-xs text-gray-400" x-text="p.level || ''"></p>
+            </div>
+            <template x-if="activeProgram && activeProgram.id === p.id">
+              <span class="text-xs bg-emerald-500/20 text-emerald-300 px-2 py-1 rounded-full shrink-0">Активна</span>
+            </template>
+            <template x-if="!activeProgram || activeProgram.id !== p.id">
+              <button type="button"
+                      @click="setProgramActive(p.id)"
+                      class="text-xs bg-gray-700 hover:bg-gray-600 px-2 py-1 rounded-full shrink-0">
+                Сделать активной
+              </button>
+            </template>
+          </div>
+          <!-- Неделя -->
+          <div class="grid grid-cols-7 gap-1">
+            <template x-for="d in getProgramWeekDays(p)" :key="d.key">
+              <button type="button"
+                      @click="d.templateId && openTemplate(d.templateId)"
+                      class="rounded-lg p-2 text-center text-xs transition-colors"
+                      :class="d.templateId ? 'bg-emerald-500/20 hover:bg-emerald-500/30 cursor-pointer' : 'bg-gray-700/50 cursor-default'">
+                <p class="text-gray-300 font-semibold" x-text="d.label"></p>
+                <p class="text-[10px] text-gray-400 truncate"
+                   x-text="d.templateId ? getTemplateNameById(d.templateId).replace('Full Body ', 'FB ') : 'отдых'"></p>
+              </button>
+            </template>
+          </div>
+        </div>
+      </template>
+    </div>
+
+    <h3 class="text-sm text-gray-400 uppercase tracking-wide mb-2">Шаблоны</h3>
+    <div class="space-y-2">
+      <template x-for="t in templates" :key="t.id">
+        <button type="button"
+                @click="openTemplate(t.id)"
+                class="w-full bg-gray-800 hover:bg-gray-700 rounded-xl p-3 flex items-center justify-between">
+          <div class="text-left">
+            <p class="font-semibold" x-text="t.name"></p>
+            <p class="text-xs text-gray-400">
+              <span x-text="t.items.length"></span> упр · ≈
+              <span x-text="t.estimatedMinutes"></span> мин
+            </p>
+          </div>
+          <i data-lucide="chevron-right" class="w-5 h-5 text-gray-400"></i>
+        </button>
+      </template>
+    </div>
+  </div>
+  </template>
+
+  <!-- ========== v2 СТРАНИЦА: ПРОСМОТР ШАБЛОНА ========== -->
+  <template x-if="page === 'template-view'">
+  <div class="min-h-screen p-4 pb-24">
+    <div class="flex items-center gap-3 mb-6">
+      <button type="button" @click="page = 'programs'" class="p-2 hover:bg-gray-800 rounded-lg">
+        <i data-lucide="chevron-left" class="w-6 h-6"></i>
+      </button>
+      <h1 class="text-xl font-bold" x-text="getSelectedTemplate()?.name || 'Шаблон'"></h1>
+    </div>
+
+    <template x-if="getSelectedTemplate()">
+      <div>
+        <div class="bg-gray-800 rounded-xl p-3 mb-4 text-sm text-gray-400">
+          ≈ <span x-text="getSelectedTemplate().estimatedMinutes"></span> мин ·
+          <span x-text="getSelectedTemplate().items.length"></span> упражнений
+        </div>
+
+        <div class="space-y-2">
+          <template x-for="(item, idx) in getSelectedTemplate().items" :key="idx">
+            <div class="bg-gray-800 rounded-xl p-3">
+              <div class="flex items-start gap-3">
+                <!-- Приоритет + superset -->
+                <div class="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm shrink-0"
+                     :class="{
+                       'bg-red-500/25 text-red-300': item.priority === 'A',
+                       'bg-blue-500/25 text-blue-300': item.priority === 'B',
+                       'bg-gray-500/25 text-gray-300': item.priority === 'C',
+                     }">
+                  <span x-text="item.priority + (item.supersetGroup ? item.supersetGroup.toUpperCase() : '')"></span>
+                </div>
+                <div class="flex-1 min-w-0">
+                  <p class="font-semibold truncate" x-text="getTemplateItemExercise(item)?.name || item.exerciseId"></p>
+                  <p class="text-xs text-gray-400">
+                    <span x-show="item.reps" x-text="item.sets + ' × ' + item.reps + ' повт'"></span>
+                    <span x-show="item.timeSec" x-text="item.sets + ' × ' + item.timeSec + ' сек'"></span>
+                    <span x-show="item.weight" x-text="' · ' + item.weight + ' кг'"></span>
+                    · отдых <span x-text="item.restSec || 60"></span> сек
+                  </p>
+                  <!-- подсказка прогрессии -->
+                  <template x-if="getSuggestionForItem(item)?.hint">
+                    <p class="text-xs text-emerald-300 mt-1">
+                      💡 <span x-text="getSuggestionForItem(item).hint"></span>
+                    </p>
+                  </template>
+                </div>
+                <!-- video -->
+                <template x-if="getTemplateItemExercise(item) && getExerciseVideoUrlV2(getTemplateItemExercise(item))">
+                  <a :href="getExerciseVideoUrlV2(getTemplateItemExercise(item))"
+                     target="_blank" rel="noopener"
+                     class="p-2 hover:bg-gray-700 rounded-lg shrink-0"
+                     title="Посмотреть видео">
+                    <i data-lucide="play-circle" class="w-5 h-5 text-red-400"></i>
+                  </a>
+                </template>
+              </div>
+            </div>
+          </template>
+        </div>
+
+        <p class="text-xs text-gray-500 mt-4 text-center">
+          Запуск тренировки из шаблона будет подключён на следующем шаге.
+        </p>
+      </div>
+    </template>
+  </div>
+  </template>
+
+  <!-- ========== v2 СТРАНИЦА: БАНК УПРАЖНЕНИЙ ========== -->
+  <template x-if="page === 'bank'">
+  <div class="min-h-screen p-4 pb-24">
+    <div class="flex items-center gap-3 mb-4">
+      <button type="button" @click="bankSelectedId ? (bankSelectedId = null) : (page = 'dashboard')"
+              class="p-2 hover:bg-gray-800 rounded-lg">
+        <i data-lucide="chevron-left" class="w-6 h-6"></i>
+      </button>
+      <h1 class="text-xl font-bold" x-text="bankSelectedId ? (getSelectedExercise()?.name || 'Упражнение') : 'Банк упражнений'"></h1>
+    </div>
+
+    <!-- Список + фильтры -->
+    <template x-if="!bankSelectedId">
+      <div>
+        <div class="bg-gray-800 rounded-xl p-3 mb-3">
+          <input type="text" x-model="bankQuery" placeholder="Поиск по названию..."
+                 class="w-full bg-gray-700 rounded-lg px-3 py-2 text-sm placeholder-gray-400 mb-2" />
+          <div class="grid grid-cols-2 gap-2 mb-2">
+            <select x-model="bankFilterMuscle" class="bg-gray-700 rounded-lg px-2 py-2 text-sm">
+              <option value="">Все мышцы</option>
+              <template x-for="m in getAllMuscleGroups()" :key="m">
+                <option :value="m" x-text="formatMuscle(m)"></option>
+              </template>
+            </select>
+            <select x-model="bankFilterEquipment" class="bg-gray-700 rounded-lg px-2 py-2 text-sm">
+              <option value="">Всё оборудование</option>
+              <template x-for="eq in getAllEquipment()" :key="eq">
+                <option :value="eq" x-text="formatEquipment(eq)"></option>
+              </template>
+            </select>
+          </div>
+          <div class="flex items-center gap-3 text-sm">
+            <label class="flex items-center gap-2">
+              <input type="checkbox" x-model="bankShoulderOnly" class="rounded" />
+              <span class="text-gray-300">Безопасно для плеча</span>
+            </label>
+            <select x-model="bankLevel" class="bg-gray-700 rounded-lg px-2 py-1 text-xs ml-auto">
+              <option value="">Любой уровень</option>
+              <option value="beginner">Начинающий</option>
+              <option value="intermediate">Средний</option>
+              <option value="advanced">Продвинутый</option>
+            </select>
+          </div>
+        </div>
+
+        <p class="text-xs text-gray-400 mb-2">
+          Найдено: <span x-text="filteredBank().length"></span>
+        </p>
+
+        <div class="space-y-2">
+          <template x-for="ex in filteredBank()" :key="ex.id">
+            <button type="button"
+                    @click="selectBankExercise(ex.id)"
+                    class="w-full bg-gray-800 hover:bg-gray-700 rounded-xl p-3 flex items-center gap-3 text-left">
+              <div class="flex-1 min-w-0">
+                <p class="font-semibold truncate" x-text="ex.name"></p>
+                <p class="text-xs text-gray-400 truncate">
+                  <span x-text="formatEquipment(ex.equipment)"></span> ·
+                  <span x-text="(ex.muscles || []).map(m => formatMuscle(m)).join(', ')"></span>
+                </p>
+              </div>
+              <template x-if="ex.shoulderFriendly === true">
+                <span class="text-[10px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 rounded shrink-0">плечо ок</span>
+              </template>
+              <template x-if="ex.shoulderFriendly === false">
+                <span class="text-[10px] bg-red-500/20 text-red-300 px-1.5 py-0.5 rounded shrink-0">⚠ плечо</span>
+              </template>
+              <i data-lucide="chevron-right" class="w-4 h-4 text-gray-400 shrink-0"></i>
+            </button>
+          </template>
+        </div>
+      </div>
+    </template>
+
+    <!-- Деталь упражнения -->
+    <template x-if="bankSelectedId && getSelectedExercise()">
+      <div class="space-y-3">
+        <template x-if="getExerciseVideoUrlV2(getSelectedExercise())">
+          <a :href="getExerciseVideoUrlV2(getSelectedExercise())" target="_blank" rel="noopener"
+             class="block bg-red-500/20 hover:bg-red-500/30 border border-red-500/40 rounded-xl p-3 text-center">
+            <i data-lucide="play-circle" class="w-6 h-6 inline text-red-400 mr-2"></i>
+            <span class="font-semibold text-red-200">Посмотреть видео на YouTube</span>
+          </a>
+        </template>
+
+        <div class="bg-gray-800 rounded-xl p-4">
+          <dl class="grid grid-cols-2 gap-y-3 text-sm">
+            <dt class="text-gray-400">Тип</dt>
+            <dd x-text="formatExerciseType(getSelectedExercise().type)"></dd>
+            <dt class="text-gray-400">Оборудование</dt>
+            <dd x-text="formatEquipment(getSelectedExercise().equipment)"></dd>
+            <dt class="text-gray-400">Мышцы</dt>
+            <dd x-text="(getSelectedExercise().muscles || []).map(m => formatMuscle(m)).join(', ')"></dd>
+            <dt class="text-gray-400">Шаг прогрессии</dt>
+            <dd>
+              <span x-show="getSelectedExercise().stepKg" x-text="'+' + getSelectedExercise().stepKg + ' кг'"></span>
+              <span x-show="getSelectedExercise().stepReps" x-text="'+' + getSelectedExercise().stepReps + ' повт'"></span>
+              <span x-show="getSelectedExercise().stepTimeSec" x-text="'+' + getSelectedExercise().stepTimeSec + ' сек'"></span>
+            </dd>
+            <dt class="text-gray-400">Отдых по умолчанию</dt>
+            <dd x-text="getSelectedExercise().defaultRest + ' сек'"></dd>
+            <dt class="text-gray-400">Уровень</dt>
+            <dd x-text="getSelectedExercise().level || '—'"></dd>
+            <dt class="text-gray-400">Плечо</dt>
+            <dd x-text="getSelectedExercise().shoulderFriendly ? 'безопасно' : 'осторожно'"></dd>
+          </dl>
+        </div>
+
+        <template x-if="(getSelectedExercise().alts || []).length > 0">
+          <div class="bg-gray-800 rounded-xl p-4">
+            <h4 class="text-sm text-gray-400 uppercase tracking-wide mb-2">Альтернативы</h4>
+            <div class="space-y-1">
+              <template x-for="altId in getSelectedExercise().alts" :key="altId">
+                <button type="button"
+                        @click="selectBankExercise(altId)"
+                        class="w-full text-left bg-gray-700/50 hover:bg-gray-700 rounded-lg px-3 py-2 text-sm">
+                  → <span x-text="(window.EXERCISE_BY_ID || {})[altId]?.name || altId"></span>
+                </button>
+              </template>
+            </div>
+          </div>
+        </template>
+
+        <!-- Override videoUrl -->
+        <div class="bg-gray-800 rounded-xl p-4">
+          <h4 class="text-sm text-gray-400 uppercase tracking-wide mb-2">Своё видео</h4>
+          <p class="text-xs text-gray-500 mb-2">Вставь YouTube-ссылку, чтобы заменить авто-поиск.</p>
+          <input type="url"
+                 :value="getSelectedExercise().videoUrl || ''"
+                 @change="saveExerciseVideoOverride(getSelectedExercise().id, $event.target.value)"
+                 placeholder="https://www.youtube.com/watch?v=..."
+                 class="w-full bg-gray-700 rounded-lg px-3 py-2 text-sm placeholder-gray-500" />
+        </div>
+      </div>
+    </template>
+  </div>
+  </template>
+
   <!-- Scripts - ПОРЯДОК ВАЖЕН! -->
+  <!-- v1 совместимость -->
   <script src="./js/data.js"></script>
-  <script src="./js/storage.js"></script>
   <script src="./icons/exercises.js"></script>
+  <!-- v2 модули -->
+  <script src="./js/exercise-bank.js"></script>
+  <script src="./js/exercise-videos.js"></script>
+  <script src="./js/storage.js"></script>
+  <script src="./js/programs.js"></script>
+  <script src="./js/timer.js"></script>
+  <script src="./js/progression.js"></script>
+  <script src="./js/energy-rules.js"></script>
+  <script src="./js/trackers.js"></script>
+  <!-- Главный компонент -->
   <script src="./js/app.js"></script>
+  <!-- v2 расширение Alpine-компонента -->
+  <script src="./js/app-v2.js"></script>
   
   <!-- Lucide Icons init -->
   <script>

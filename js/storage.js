@@ -1,261 +1,338 @@
 /**
- * LocalStorage wrapper for GymBro
+ * Storage v2 — единый слой доступа к localStorage с версионированием схемы.
+ *
+ * Ключи:
+ *   gym_schema_version — текущая версия схемы (число)
+ *   gym_backup_v1      — бэкап старых данных (на случай отката)
+ *   gym_settings       — настройки приложения
+ *   gym_programs       — массив программ
+ *   gym_active_program — id активной программы
+ *   gym_workouts       — лог тренировок
+ *   gym_session        — текущая активная сессия (auto-save)
+ *   gym_trackers       — пользовательские трекеры (геймификация)
+ *   gym_prs            — personal records (1RM по упражнениям)
+ *   gym_stats          — агрегированная статистика
+ *   gym_exercise_overrides — пользовательские override полей упражнений (videoUrl и т.п.)
  */
-const Storage = {
-  KEYS: {
-    WORKOUTS: 'gym_workouts',
-    STATS: 'gym_stats',
-    PROFILE: 'gym_profile',
-    SESSION: 'gym_session',
-    TEMPLATES: 'gym_templates',
-    INACTIVE: 'gym_inactive',
-  },
-  
-  // ===== WORKOUTS =====
-  getWorkouts() {
-    try {
-      const data = localStorage.getItem(this.KEYS.WORKOUTS);
-      return data ? JSON.parse(data) : [];
-    } catch (e) {
-      console.error('Error reading workouts:', e);
-      return [];
-    }
-  },
-  
-  saveWorkout(workout) {
-    try {
-      const workouts = this.getWorkouts();
-      workouts.unshift(workout); // Add to beginning
-      
-      // Keep only last 100 workouts
-      if (workouts.length > 100) {
-        workouts.pop();
-      }
-      
-      localStorage.setItem(this.KEYS.WORKOUTS, JSON.stringify(workouts));
-      return true;
-    } catch (e) {
-      console.error('Error saving workout:', e);
-      return false;
-    }
-  },
-  
-  deleteWorkout(id) {
-    try {
-      const workouts = this.getWorkouts().filter(w => w.id !== id);
-      localStorage.setItem(this.KEYS.WORKOUTS, JSON.stringify(workouts));
-      return true;
-    } catch (e) {
-      console.error('Error deleting workout:', e);
-      return false;
-    }
-  },
-  
-  updateWorkout(workout) {
-    try {
-      const workouts = this.getWorkouts();
-      const idx = workouts.findIndex(w => w.id === workout.id);
-      if (idx === -1) return false;
-      workouts[idx] = workout;
-      localStorage.setItem(this.KEYS.WORKOUTS, JSON.stringify(workouts));
-      return true;
-    } catch (e) {
-      console.error('Error updating workout:', e);
-      return false;
-    }
-  },
-  
-  // ===== STATS =====
-  getStats() {
-    try {
-      const data = localStorage.getItem(this.KEYS.STATS);
-      return data ? JSON.parse(data) : null;
-    } catch (e) {
-      console.error('Error reading stats:', e);
-      return null;
-    }
-  },
-  
-  saveStats(stats) {
-    try {
-      localStorage.setItem(this.KEYS.STATS, JSON.stringify(stats));
-      return true;
-    } catch (e) {
-      console.error('Error saving stats:', e);
-      return false;
-    }
-  },
-  
-  // ===== PROFILE =====
-  getProfile() {
-    try {
-      const data = localStorage.getItem(this.KEYS.PROFILE);
-      return data ? JSON.parse(data) : null;
-    } catch (e) {
-      console.error('Error reading profile:', e);
-      return null;
-    }
-  },
-  
-  saveProfile(profile) {
-    try {
-      localStorage.setItem(this.KEYS.PROFILE, JSON.stringify(profile));
-      return true;
-    } catch (e) {
-      console.error('Error saving profile:', e);
-      return false;
-    }
-  },
-  
-  // ===== EXPORT/IMPORT =====
-  exportData() {
-    return {
-      workouts: this.getWorkouts(),
-      stats: this.getStats(),
-      profile: this.getProfile(),
-      exportedAt: new Date().toISOString(),
-    };
-  },
-  
-  importData(data) {
-    try {
-      if (data.workouts) {
-        localStorage.setItem(this.KEYS.WORKOUTS, JSON.stringify(data.workouts));
-      }
-      if (data.stats) {
-        localStorage.setItem(this.KEYS.STATS, JSON.stringify(data.stats));
-      }
-      if (data.profile) {
-        localStorage.setItem(this.KEYS.PROFILE, JSON.stringify(data.profile));
-      }
-      return true;
-    } catch (e) {
-      console.error('Error importing data:', e);
-      return false;
-    }
-  },
-  
-  // ===== SESSION (для восстановления после перезагрузки) =====
-  getSession() {
-    try {
-      const data = localStorage.getItem(this.KEYS.SESSION);
-      return data ? JSON.parse(data) : null;
-    } catch (e) {
-      console.error('Error reading session:', e);
-      return null;
-    }
-  },
-  
-  saveSession(session) {
-    try {
-      if (!session) return false;
-      session.savedAt = new Date().toISOString();
-      localStorage.setItem(this.KEYS.SESSION, JSON.stringify(session));
-      return true;
-    } catch (e) {
-      console.error('Error saving session:', e);
-      return false;
-    }
-  },
-  
-  clearSession() {
-    try {
-      localStorage.removeItem(this.KEYS.SESSION);
-      return true;
-    } catch (e) {
-      return false;
-    }
-  },
-  
-  // ===== TEMPLATES (шаблоны тренировок) =====
-  _normalizeAlts(alts) {
-    if (!Array.isArray(alts)) return [];
-    return alts.map(a =>
-      typeof a === 'string' ? { name: a, forWhat: '', videoUrl: '' } : { name: a.name || '', forWhat: a.forWhat || '', videoUrl: a.videoUrl || '' }
-    );
-  },
-  _normalizeExercise(ex) {
-    if (!ex) return ex;
-    const e = { ...ex };
-    e.videoUrl = e.videoUrl || '';
-    e.alts = this._normalizeAlts(e.alts);
-    return e;
-  },
-  _normalizeTemplates(templates) {
-    const out = {};
-    for (const [k, v] of Object.entries(templates || {})) {
-      if (v && v.exercises) {
-        out[k] = { ...v, exercises: (v.exercises || []).map(ex => this._normalizeExercise(ex)) };
-      } else {
-        out[k] = v;
-      }
-    }
-    return out;
-  },
-  getTemplates() {
-    try {
-      const data = localStorage.getItem(this.KEYS.TEMPLATES);
-      const custom = data ? JSON.parse(data) : null;
-      const base = typeof WORKOUT_TEMPLATES !== 'undefined' ? WORKOUT_TEMPLATES : {};
-      const merged = custom && Object.keys(custom).length > 0 ? { ...base, ...custom } : base;
-      return this._normalizeTemplates(merged);
-    } catch (e) {
-      console.error('Error reading templates:', e);
-      return this._normalizeTemplates(typeof WORKOUT_TEMPLATES !== 'undefined' ? WORKOUT_TEMPLATES : {});
-    }
-  },
-  
-  saveTemplates(templates) {
-    try {
-      localStorage.setItem(this.KEYS.TEMPLATES, JSON.stringify(templates));
-      return true;
-    } catch (e) {
-      console.error('Error saving templates:', e);
-      return false;
-    }
-  },
-  
-  // ===== INACTIVE EXERCISES (нет в моем зале) =====
-  getInactive() {
-    try {
-      const data = localStorage.getItem(this.KEYS.INACTIVE);
-      return data ? JSON.parse(data) : {};
-    } catch (e) {
-      console.error('Error reading inactive:', e);
-      return {};
-    }
-  },
-  
-  saveInactive(data) {
-    try {
-      localStorage.setItem(this.KEYS.INACTIVE, JSON.stringify(data));
-      return true;
-    } catch (e) {
-      console.error('Error saving inactive:', e);
-      return false;
-    }
-  },
-  
-  toggleInactive(workoutKey, exerciseId) {
-    const data = this.getInactive();
-    const arr = data[workoutKey] || [];
-    const idx = arr.indexOf(exerciseId);
-    if (idx === -1) {
-      arr.push(exerciseId);
-    } else {
-      arr.splice(idx, 1);
-    }
-    data[workoutKey] = arr;
-    return this.saveInactive(data);
-  },
-  
-  // ===== CLEAR =====
-  clearAll() {
-    localStorage.removeItem(this.KEYS.WORKOUTS);
-    localStorage.removeItem(this.KEYS.STATS);
-    localStorage.removeItem(this.KEYS.PROFILE);
-    localStorage.removeItem(this.KEYS.SESSION);
-    localStorage.removeItem(this.KEYS.TEMPLATES);
-    localStorage.removeItem(this.KEYS.INACTIVE);
-  }
+
+const SCHEMA_VERSION = 2;
+
+const KEYS = {
+  schemaVersion: 'gym_schema_version',
+  backupV1: 'gym_backup_v1',
+  settings: 'gym_settings',
+  programs: 'gym_programs',
+  activeProgram: 'gym_active_program',
+  workouts: 'gym_workouts',
+  session: 'gym_session',
+  trackers: 'gym_trackers',
+  prs: 'gym_prs',
+  stats: 'gym_stats',
+  exerciseOverrides: 'gym_exercise_overrides',
 };
+
+const DEFAULT_SETTINGS = {
+  sound: true,
+  vibration: true,
+  defaultRestSetSec: 60,
+  defaultRestExerciseSec: 120,
+  beepFreqHz: 880,
+  wakeLockOnWorkout: true,
+  weightUnit: 'kg',
+};
+
+// ============ INTERNAL HELPERS ============
+
+function safeParse(json, fallback) {
+  if (json == null) return fallback;
+  try {
+    return JSON.parse(json);
+  } catch (e) {
+    console.warn('storage: JSON parse failed, returning fallback', e);
+    return fallback;
+  }
+}
+
+function safeGet(key, fallback) {
+  try {
+    return safeParse(localStorage.getItem(key), fallback);
+  } catch (e) {
+    console.warn('storage: getItem failed', key, e);
+    return fallback;
+  }
+}
+
+function safeSet(key, value) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+    return true;
+  } catch (e) {
+    console.error('storage: setItem failed', key, e);
+    return false;
+  }
+}
+
+// ============ MIGRATION ============
+
+function getCurrentSchemaVersion() {
+  const raw = localStorage.getItem(KEYS.schemaVersion);
+  return raw ? parseInt(raw, 10) || 0 : 0;
+}
+
+function setSchemaVersion(v) {
+  localStorage.setItem(KEYS.schemaVersion, String(v));
+}
+
+function backupV1IfNeeded() {
+  if (localStorage.getItem(KEYS.backupV1)) return; // уже бэкапилось
+  const v1Keys = ['gym_workouts', 'gym_stats', 'gym_profile', 'gym_session', 'gym_templates', 'gym_inactive'];
+  const backup = {};
+  let hasAny = false;
+  for (const k of v1Keys) {
+    const raw = localStorage.getItem(k);
+    if (raw != null) {
+      backup[k] = raw;
+      hasAny = true;
+    }
+  }
+  if (hasAny) {
+    backup._backedUpAt = new Date().toISOString();
+    safeSet(KEYS.backupV1, backup);
+    console.log('💾 storage: v1 data backed up to', KEYS.backupV1);
+  }
+}
+
+function migrateToV2() {
+  console.log('🔄 storage: migrating to v2 (clean start)…');
+  backupV1IfNeeded();
+  // Чистый старт: удаляем v1-ключи
+  const v1Keys = ['gym_workouts', 'gym_stats', 'gym_profile', 'gym_session', 'gym_templates', 'gym_inactive'];
+  for (const k of v1Keys) {
+    localStorage.removeItem(k);
+  }
+  setSchemaVersion(2);
+  console.log('✅ storage: migration to v2 complete');
+}
+
+function ensureSchema() {
+  const v = getCurrentSchemaVersion();
+  if (v < 2) {
+    migrateToV2();
+  }
+}
+
+// ============ SETTINGS ============
+
+function getSettings() {
+  return { ...DEFAULT_SETTINGS, ...safeGet(KEYS.settings, {}) };
+}
+
+function saveSettings(patch) {
+  const next = { ...getSettings(), ...patch };
+  safeSet(KEYS.settings, next);
+  return next;
+}
+
+// ============ PROGRAMS ============
+
+function getPrograms() {
+  return safeGet(KEYS.programs, []);
+}
+
+function savePrograms(programs) {
+  safeSet(KEYS.programs, programs);
+}
+
+function getActiveProgramId() {
+  const raw = localStorage.getItem(KEYS.activeProgram);
+  return raw || null;
+}
+
+function setActiveProgramId(id) {
+  if (id == null) {
+    localStorage.removeItem(KEYS.activeProgram);
+  } else {
+    localStorage.setItem(KEYS.activeProgram, id);
+  }
+}
+
+function getActiveProgram() {
+  const id = getActiveProgramId();
+  if (!id) return null;
+  return getPrograms().find(p => p.id === id) || null;
+}
+
+function upsertProgram(program) {
+  const list = getPrograms();
+  const i = list.findIndex(p => p.id === program.id);
+  if (i >= 0) list[i] = program;
+  else list.push(program);
+  savePrograms(list);
+}
+
+function deleteProgram(id) {
+  savePrograms(getPrograms().filter(p => p.id !== id));
+  if (getActiveProgramId() === id) setActiveProgramId(null);
+}
+
+// ============ WORKOUTS LOG ============
+
+function getWorkouts() {
+  return safeGet(KEYS.workouts, []);
+}
+
+function saveWorkout(workout) {
+  const list = getWorkouts();
+  list.unshift(workout);
+  // ограничиваем размер истории
+  const trimmed = list.slice(0, 500);
+  safeSet(KEYS.workouts, trimmed);
+}
+
+function updateWorkout(workout) {
+  const list = getWorkouts();
+  const i = list.findIndex(w => w.id === workout.id);
+  if (i >= 0) {
+    list[i] = workout;
+    safeSet(KEYS.workouts, list);
+  }
+}
+
+function deleteWorkout(id) {
+  safeSet(KEYS.workouts, getWorkouts().filter(w => w.id !== id));
+}
+
+// Все подходы по конкретному упражнению (по exerciseId), новейшие первыми
+function getExerciseHistory(exerciseId, limit = 50) {
+  const out = [];
+  for (const w of getWorkouts()) {
+    if (!Array.isArray(w.sets)) continue;
+    for (const s of w.sets) {
+      if (s.exerciseId === exerciseId) {
+        out.push({ ...s, workoutId: w.id, workoutDate: w.dateISO || w.date });
+        if (out.length >= limit) return out;
+      }
+    }
+  }
+  return out;
+}
+
+// ============ SESSION (in-flight workout) ============
+
+function getSession() {
+  return safeGet(KEYS.session, null);
+}
+
+function saveSession(session) {
+  const stamped = { ...session, savedAt: new Date().toISOString() };
+  safeSet(KEYS.session, stamped);
+}
+
+function clearSession() {
+  localStorage.removeItem(KEYS.session);
+}
+
+// ============ TRACKERS (gamification) ============
+
+function getTrackers() {
+  return safeGet(KEYS.trackers, []);
+}
+
+function saveTrackers(trackers) {
+  safeSet(KEYS.trackers, trackers);
+}
+
+function upsertTracker(tracker) {
+  const list = getTrackers();
+  const i = list.findIndex(t => t.id === tracker.id);
+  if (i >= 0) list[i] = tracker;
+  else list.push(tracker);
+  saveTrackers(list);
+}
+
+function deleteTracker(id) {
+  saveTrackers(getTrackers().filter(t => t.id !== id));
+}
+
+// ============ PRs ============
+
+function getPRs() {
+  return safeGet(KEYS.prs, {}); // { [exerciseId]: { value, units, date, workoutId } }
+}
+
+function savePR(exerciseId, pr) {
+  const all = getPRs();
+  all[exerciseId] = { ...pr, updatedAt: new Date().toISOString() };
+  safeSet(KEYS.prs, all);
+}
+
+// ============ STATS ============
+
+function getStats() {
+  return safeGet(KEYS.stats, {
+    streak: 0,
+    weekCompleted: 0,
+    weekStart: null,
+    cardioMinutes: 0,
+    avgMood: null,
+  });
+}
+
+function saveStats(stats) {
+  safeSet(KEYS.stats, stats);
+}
+
+// ============ EXERCISE OVERRIDES (videoUrl и пр.) ============
+
+function getExerciseOverrides() {
+  return safeGet(KEYS.exerciseOverrides, {});
+}
+
+function setExerciseOverride(exerciseId, patch) {
+  const all = getExerciseOverrides();
+  all[exerciseId] = { ...(all[exerciseId] || {}), ...patch };
+  safeSet(KEYS.exerciseOverrides, all);
+}
+
+// Возвращает упражнение из банка, наложив сверху пользовательские overrides
+function getExerciseMerged(exerciseId) {
+  const base = (window.EXERCISE_BY_ID || {})[exerciseId];
+  if (!base) return null;
+  const ov = getExerciseOverrides()[exerciseId];
+  return ov ? { ...base, ...ov } : base;
+}
+
+// ============ ROOT ============
+
+function init() {
+  ensureSchema();
+  console.log('📦 storage v' + SCHEMA_VERSION + ' ready');
+}
+
+const Storage = {
+  init,
+  KEYS,
+  SCHEMA_VERSION,
+  // settings
+  getSettings, saveSettings,
+  // programs
+  getPrograms, savePrograms,
+  getActiveProgramId, setActiveProgramId, getActiveProgram,
+  upsertProgram, deleteProgram,
+  // workouts
+  getWorkouts, saveWorkout, updateWorkout, deleteWorkout,
+  getExerciseHistory,
+  // session
+  getSession, saveSession, clearSession,
+  // trackers
+  getTrackers, saveTrackers, upsertTracker, deleteTracker,
+  // PRs
+  getPRs, savePR,
+  // stats
+  getStats, saveStats,
+  // exercise overrides
+  getExerciseOverrides, setExerciseOverride, getExerciseMerged,
+};
+
+window.Storage = Storage;
+console.log('📦 storage.js loaded');
