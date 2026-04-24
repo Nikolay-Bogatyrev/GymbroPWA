@@ -55,6 +55,25 @@
 </head>
 <body class="bg-gray-900 text-white min-h-screen" x-data="gymTracker()" x-init="init()">
 
+  <!-- Update banner: показывается когда SW нашёл новую версию -->
+  <div x-show="updateAvailable"
+       x-transition
+       class="fixed top-0 inset-x-0 z-50 bg-blue-500 text-white px-4 py-2 flex items-center gap-3 shadow-lg"
+       style="display:none;">
+    <div class="flex-1 text-sm">
+      <p class="font-semibold">Доступно обновление</p>
+      <p class="text-xs text-blue-100">Нажми «Обновить» чтобы применить.</p>
+    </div>
+    <button type="button" @click="applyUpdate()"
+            class="bg-white text-blue-600 font-bold rounded-lg px-3 py-1.5 text-sm shrink-0">
+      Обновить
+    </button>
+    <button type="button" @click="dismissUpdate()"
+            class="text-white/80 hover:text-white shrink-0 px-1"
+            title="Позже">✕</button>
+  </div>
+
+
   <!-- ========== СТРАНИЦА: DASHBOARD ========== -->
   <template x-if="page === 'dashboard'">
   <div class="min-h-screen p-4 pb-24">
@@ -284,13 +303,10 @@
       <div class="space-y-2">
         <template x-for="workout in recentWorkouts" :key="workout.id">
           <div class="flex items-center gap-3 bg-gray-700/50 rounded-xl p-3">
-            <div 
+            <div
               class="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
               :class="getWorkoutTypeColor(workout.type)"
-            >
-              <template x-if="workout.type === 'cardio'"><i data-lucide="activity" class="w-5 h-5"></i></template>
-              <template x-if="workout.type !== 'cardio'"><i data-lucide="dumbbell" class="w-5 h-5"></i></template>
-            </div>
+              x-html="workout.type === 'cardio' ? iconSvg('activity') : iconSvg('dumbbell')"></div>
             <div class="flex-1 min-w-0">
               <p class="font-medium" x-text="workout.name"></p>
               <p class="text-sm text-gray-400" x-text="workout.date"></p>
@@ -1118,6 +1134,26 @@
       <h1 class="text-xl font-bold" x-text="getSelectedTemplate()?.name || 'Шаблон'"></h1>
     </div>
 
+    <template x-if="!getSelectedTemplate()">
+      <div class="bg-gray-800 rounded-2xl p-6 text-center text-gray-400">
+        <p class="text-sm mb-3">⚠️ Шаблон не найден или не загружен.</p>
+        <p class="text-xs text-gray-500 mb-4">
+          Возможно, старая версия приложения ещё закеширована.
+          Попробуй применить обновление или вернись на дашборд.
+        </p>
+        <div class="flex gap-2 justify-center">
+          <button type="button" @click="page = 'dashboard'"
+                  class="bg-gray-700 hover:bg-gray-600 rounded-lg px-4 py-2 text-sm">
+            ← На главную
+          </button>
+          <button type="button" @click="forceUpdate()"
+                  class="bg-blue-500 hover:bg-blue-600 rounded-lg px-4 py-2 text-sm font-semibold">
+            🔄 Обновить приложение
+          </button>
+        </div>
+      </div>
+    </template>
+
     <template x-if="getSelectedTemplate()">
       <div>
         <div class="bg-gray-800 rounded-xl p-3 mb-4 text-sm text-gray-400">
@@ -1158,14 +1194,8 @@
                   <button type="button"
                           @click="toggleInlineVideo(item.exerciseId)"
                           class="p-2 hover:bg-gray-700 rounded-lg shrink-0"
-                          title="Видео">
-                    <template x-if="isInlineVideoOpen(item.exerciseId)">
-                      <i data-lucide="x" class="w-5 h-5 text-gray-300"></i>
-                    </template>
-                    <template x-if="!isInlineVideoOpen(item.exerciseId)">
-                      <i data-lucide="play-circle" class="w-5 h-5 text-red-400"></i>
-                    </template>
-                  </button>
+                          title="Видео"
+                          x-html="isInlineVideoOpen(item.exerciseId) ? iconSvg('x','text-gray-300') : iconSvg('play-circle','text-red-400')"></button>
                 </template>
                 <template x-if="getTemplateItemExercise(item) && !getExerciseEmbedUrl(getTemplateItemExercise(item)) && getExerciseSearchUrl(getTemplateItemExercise(item))">
                   <a :href="getExerciseSearchUrl(getTemplateItemExercise(item))" target="_blank" rel="noopener"
@@ -1362,14 +1392,8 @@
             <template x-if="currentExercise2() && getExerciseEmbedUrl(currentExercise2())">
               <button type="button"
                       @click="toggleInlineVideo(currentItem2().exerciseId)"
-                      class="p-2 hover:bg-gray-700 rounded-lg shrink-0">
-                <template x-if="isInlineVideoOpen(currentItem2().exerciseId)">
-                  <i data-lucide="x" class="w-5 h-5 text-gray-300"></i>
-                </template>
-                <template x-if="!isInlineVideoOpen(currentItem2().exerciseId)">
-                  <i data-lucide="play-circle" class="w-5 h-5 text-red-400"></i>
-                </template>
-              </button>
+                      class="p-2 hover:bg-gray-700 rounded-lg shrink-0"
+                      x-html="isInlineVideoOpen(currentItem2().exerciseId) ? iconSvg('x','text-gray-300') : iconSvg('play-circle','text-red-400')"></button>
             </template>
             <template x-if="currentExercise2() && !getExerciseEmbedUrl(currentExercise2()) && getExerciseSearchUrl(currentExercise2())">
               <a :href="getExerciseSearchUrl(currentExercise2())" target="_blank" rel="noopener"
@@ -1466,11 +1490,9 @@
                          'text-amber-400': draftTimeSec > 0 && draftTimeSec <= 3 && workTimer.running,
                        }" />
                 <button type="button" @click="toggleWorkTimer()"
-                        class="w-12 h-12 rounded-xl text-xl shrink-0"
-                        :class="workTimer.running ? 'bg-red-500 hover:bg-red-600' : 'bg-emerald-500 hover:bg-emerald-600'">
-                  <template x-if="workTimer.running"><i data-lucide="pause" class="w-5 h-5 mx-auto"></i></template>
-                  <template x-if="!workTimer.running"><i data-lucide="play" class="w-5 h-5 mx-auto"></i></template>
-                </button>
+                        class="w-12 h-12 rounded-xl text-xl shrink-0 flex items-center justify-center"
+                        :class="workTimer.running ? 'bg-red-500 hover:bg-red-600' : 'bg-emerald-500 hover:bg-emerald-600'"
+                        x-html="workTimer.running ? iconSvg('pause') : iconSvg('play')"></button>
               </div>
               <template x-if="_workTimerCompleted">
                 <p class="text-xs text-emerald-400 mt-2">✓ Готово — жми «Записать подход»</p>
@@ -1510,11 +1532,9 @@
                            'text-amber-400': draftTimeSec > 0 && draftTimeSec <= 3 && workTimer.running,
                          }" />
                   <button type="button" @click="toggleWorkTimer()"
-                          class="w-12 h-12 rounded-xl shrink-0"
-                          :class="workTimer.running ? 'bg-red-500 hover:bg-red-600' : 'bg-emerald-500 hover:bg-emerald-600'">
-                    <template x-if="workTimer.running"><i data-lucide="pause" class="w-5 h-5 mx-auto"></i></template>
-                    <template x-if="!workTimer.running"><i data-lucide="play" class="w-5 h-5 mx-auto"></i></template>
-                  </button>
+                          class="w-12 h-12 rounded-xl shrink-0 flex items-center justify-center"
+                          :class="workTimer.running ? 'bg-red-500 hover:bg-red-600' : 'bg-emerald-500 hover:bg-emerald-600'"
+                          x-html="workTimer.running ? iconSvg('pause') : iconSvg('play')"></button>
                 </div>
               </div>
             </div>
@@ -1711,6 +1731,41 @@
       <p class="text-xs text-gray-500">
         Бэкап старых данных (v1) лежит в localStorage под ключом
         <code class="bg-gray-700 px-1 rounded">gym_backup_v1</code>.
+      </p>
+    </div>
+
+    <!-- О приложении / обновление -->
+    <div class="bg-gray-800 rounded-2xl p-4 mb-3 space-y-3">
+      <h3 class="text-xs uppercase tracking-wide text-gray-400">О приложении</h3>
+      <div class="flex items-center justify-between gap-2">
+        <div>
+          <p class="text-sm font-semibold">GymBro</p>
+          <p class="text-xs text-gray-400">
+            Версия <span class="text-gray-200 font-semibold" x-text="appVersion"></span>
+            · сборка <span x-text="appBuildDate"></span>
+          </p>
+        </div>
+        <template x-if="updateAvailable">
+          <span class="text-[10px] bg-blue-500/20 text-blue-300 px-2 py-1 rounded-full shrink-0">обновление</span>
+        </template>
+      </div>
+
+      <template x-if="updateAvailable">
+        <button type="button" @click="applyUpdate()"
+                class="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-lg py-2 text-sm">
+          🔄 Применить обновление (перезагрузит страницу)
+        </button>
+      </template>
+      <template x-if="!updateAvailable">
+        <button type="button" @click="forceUpdate()" :disabled="updateInProgress"
+                class="w-full bg-gray-700 hover:bg-gray-600 rounded-lg py-2 text-sm disabled:opacity-50">
+          <span x-show="!updateInProgress">🔁 Проверить и принудительно обновить</span>
+          <span x-show="updateInProgress">Обновляем...</span>
+        </button>
+      </template>
+      <p class="text-[10px] text-gray-500">
+        На iOS PWA на Home Screen иногда залипает старая версия. Эта кнопка
+        сбрасывает кэш Service Worker и перезагружает приложение.
       </p>
     </div>
   </div>
@@ -2408,24 +2463,37 @@
     });
   </script>
   
-  <!-- Register Service Worker (network-first для кода, авто-обновление) -->
+  <!-- Register Service Worker + видимый механизм обновления -->
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('./sw.js').then((reg) => {
           console.log('SW registered:', reg.scope);
-          // Если есть ожидающий SW — попросить его активироваться немедленно
-          if (reg.waiting) reg.waiting.postMessage('SKIP_WAITING');
+
+          // Явная проверка обновлений при каждом запуске (важно для iOS PWA)
+          reg.update().catch(() => {});
+          // Периодическая проверка пока страница открыта
+          setInterval(() => reg.update().catch(() => {}), 5 * 60 * 1000);
+
+          function notifyUpdateAvailable() {
+            document.dispatchEvent(new CustomEvent('app-update-available'));
+          }
+
+          // Если есть уже ожидающий SW — сразу показываем банер
+          if (reg.waiting && navigator.serviceWorker.controller) notifyUpdateAvailable();
+
           reg.addEventListener('updatefound', () => {
             const sw = reg.installing;
             if (!sw) return;
             sw.addEventListener('statechange', () => {
               if (sw.state === 'installed' && navigator.serviceWorker.controller) {
-                sw.postMessage('SKIP_WAITING');
+                // Есть новая версия, готова к активации
+                notifyUpdateAvailable();
               }
             });
           });
         }).catch((err) => console.warn('SW registration failed:', err));
+
         // Перезагружаем страницу когда новый SW взял управление
         let reloaded = false;
         navigator.serviceWorker.addEventListener('controllerchange', () => {

@@ -17,9 +17,74 @@
     return;
   }
 
+  // Inline SVG иконки (Lucide в динамических местах даёт дублирующиеся узлы,
+  // т.к. createIcons() заменяет <i> на <svg> и Alpine теряет контроль).
+  // Эти — вставляются через x-html, Alpine управляет строкой целиком.
+  const ICON_PATHS = {
+    'play-circle': '<circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/>',
+    'play':        '<polygon points="6 3 20 12 6 21 6 3"/>',
+    'pause':       '<rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/>',
+    'x':           '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>',
+    'search':      '<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>',
+    'dumbbell':    '<path d="M14.4 14.4L9.6 9.6"/><path d="M18.657 21.485a2 2 0 1 1-2.829-2.828l-1.767 1.768a2 2 0 1 1-2.829-2.829l6.364-6.364a2 2 0 1 1 2.829 2.829l-1.768 1.767a2 2 0 1 1 2.828 2.829z"/><path d="m21.5 21.5-1.4-1.4"/><path d="M3.9 3.9 2.5 2.5"/><path d="M6.404 12.768a2 2 0 1 1-2.829-2.829l1.768-1.767a2 2 0 1 1-2.828-2.829l2.828-2.828a2 2 0 1 1 2.829 2.828l1.767-1.768a2 2 0 1 1 2.829 2.829z"/>',
+    'activity':    '<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>',
+  };
+
+  function makeIconSvg(name, extraClass) {
+    const body = ICON_PATHS[name] || '';
+    const cls = 'w-5 h-5 ' + (extraClass || '');
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${cls}">${body}</svg>`;
+  }
+  window.makeIconSvg = makeIconSvg;
+
   window.gymTracker = function gymTrackerV2() {
     const base = originalGymTracker();
     const originalInit = base.init;
+
+    base.iconSvg = function (name, extraClass) { return makeIconSvg(name, extraClass); };
+
+    // ===== App update / версия =====
+    base.appVersion = 'v9.1';
+    base.appBuildDate = '2026-04-24';
+    base.updateAvailable = false;
+    base.updateInProgress = false;
+
+    base.forceUpdate = async function () {
+      this.updateInProgress = true;
+      try {
+        if ('serviceWorker' in navigator) {
+          const reg = await navigator.serviceWorker.getRegistration();
+          if (reg) {
+            await reg.update();
+            if (reg.waiting) reg.waiting.postMessage('SKIP_WAITING');
+          }
+        }
+        // Жёсткая перезагрузка с чисткой кеша
+        if (window.caches && caches.keys) {
+          const keys = await caches.keys();
+          await Promise.all(keys.map(k => caches.delete(k)));
+        }
+      } catch (e) {
+        console.warn('forceUpdate:', e);
+      }
+      // Перезагрузка страницы без кэша
+      setTimeout(() => window.location.reload(), 200);
+    };
+
+    base.applyUpdate = function () {
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistration().then(reg => {
+          if (reg && reg.waiting) reg.waiting.postMessage('SKIP_WAITING');
+          else window.location.reload();
+        });
+      } else {
+        window.location.reload();
+      }
+    };
+
+    base.dismissUpdate = function () {
+      this.updateAvailable = false;
+    };
 
     // ====== НОВОЕ STATE ======
     base.v2Ready = false;
@@ -111,6 +176,12 @@
       };
       document.addEventListener('click', onceUnlock, { once: true });
       document.addEventListener('touchstart', onceUnlock, { once: true });
+
+      // Подписываемся на событие доступного обновления SW
+      const self = this;
+      document.addEventListener('app-update-available', () => {
+        self.updateAvailable = true;
+      });
 
       console.log('🚀 app-v2 ready');
     };
