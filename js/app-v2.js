@@ -329,6 +329,8 @@
       this.draftWeight = typeof it.weight === 'number' ? it.weight : 0;
       this.draftReps = typeof it.reps === 'number' ? it.reps : 0;
       this.draftTimeSec = typeof it.timeSec === 'number' ? it.timeSec : 0;
+      this._workTimerStarted = false;
+      this._workTimerCompleted = false;
       this.stopWorkTimer();
     };
 
@@ -362,11 +364,19 @@
         setRecord.reps = Number(this.draftReps) || 0;
       } else if (ex.type === 'bodyweight_reps') {
         setRecord.reps = Number(this.draftReps) || 0;
-      } else if (ex.type === 'time_only') {
-        setRecord.timeSec = Number(this.draftTimeSec) || 0;
-      } else if (ex.type === 'weighted_time') {
-        setRecord.weight = Number(this.draftWeight) || 0;
-        setRecord.timeSec = Number(this.draftTimeSec) || 0;
+      } else if (ex.type === 'time_only' || ex.type === 'weighted_time') {
+        // draftTimeSec идёт вниз от target к 0 — считаем фактически простоянное время
+        const target = Number(it.timeSec) || 0;
+        let heldSec;
+        if (this._workTimerCompleted) {
+          heldSec = target; // дошли до 0 — засчитываем target полностью
+        } else if (this._workTimerStarted) {
+          heldSec = Math.max(0, target - Number(this.draftTimeSec || 0));
+        } else {
+          heldSec = target; // таймер не запускали — считаем что выполнил (ввёл вручную или сразу записал)
+        }
+        setRecord.timeSec = heldSec;
+        if (ex.type === 'weighted_time') setRecord.weight = Number(this.draftWeight) || 0;
       } else {
         setRecord.reps = Number(this.draftReps) || 0;
       }
@@ -536,16 +546,55 @@
       if (window.GymTimer && GymTimer.unlockAudio) GymTimer.unlockAudio();
     };
 
-    // ============ Time-only / weighted_time секундомер для draft ============
+    // ============ Time-only / weighted_time секундомер (countdown от target к 0) ============
+    // draftTimeSec показывает СКОЛЬКО ОСТАЛОСЬ (идёт вниз). Изначально = item.timeSec (target).
+    // При записи подхода фактически простоянное время = targetTime - draftTimeSec.
+    // Если таймер ни разу не запускался (_workTimerStarted = false) — считаем что выполнил target полностью.
+
     base.startWorkTimer = function () {
       this.stopWorkTimer();
       const self = this;
+      const settings = (window.Storage && Storage.getSettings) ? Storage.getSettings() : { sound: true, vibration: true, beepFreqHz: 880 };
+
+      // Бип старта
+      if (settings.sound !== false && window.GymTimer) {
+        GymTimer.beep({ freq: (settings.beepFreqHz || 880) - 220, durationMs: 80, gain: 0.10 });
+      }
+
       this.workTimer.running = true;
-      this.workTimer.startedAt = performance.now();
-      const baseSec = Number(this.draftTimeSec) || 0;
+      this._workTimerStarted = true;
+
+      // Запускаем с текущего значения draftTimeSec (может быть неполный target после паузы)
+      const startVal = Math.max(0, Number(this.draftTimeSec) || 0);
+      const t0 = performance.now();
+      let warned3 = false;
+
       this.workTimer.intervalId = setInterval(() => {
-        const elapsed = (performance.now() - self.workTimer.startedAt) / 1000;
-        self.draftTimeSec = Math.round(baseSec + elapsed);
+        const elapsed = (performance.now() - t0) / 1000;
+        const remaining = Math.max(0, startVal - elapsed);
+
+        self.draftTimeSec = Math.ceil(remaining);
+
+        // Предупреждение за 3 сек до конца
+        if (!warned3 && remaining <= 3 && remaining > 0.3) {
+          warned3 = true;
+          if (settings.sound !== false && window.GymTimer) {
+            GymTimer.beep({ freq: (settings.beepFreqHz || 880) - 220, durationMs: 80, gain: 0.10 });
+          }
+        }
+
+        // Конец
+        if (remaining <= 0) {
+          self.stopWorkTimer();
+          self.draftTimeSec = 0;
+          self._workTimerCompleted = true;
+          if (settings.sound !== false && window.GymTimer) {
+            GymTimer.beep({ freq: settings.beepFreqHz || 880, durationMs: 350, gain: 0.18 });
+          }
+          if (settings.vibration !== false && window.GymTimer) {
+            GymTimer.vibrate([200, 80, 200]);
+          }
+        }
       }, 250);
     };
 
@@ -562,7 +611,11 @@
 
     base.resetDraftTime = function () {
       this.stopWorkTimer();
-      this.draftTimeSec = 0;
+      const it = this.currentItem2();
+      // Сбрасываем на исходное целевое время упражнения
+      this.draftTimeSec = it && typeof it.timeSec === 'number' ? it.timeSec : 0;
+      this._workTimerStarted = false;
+      this._workTimerCompleted = false;
     };
 
     // ============ Замена упражнения ============

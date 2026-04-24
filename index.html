@@ -1309,17 +1309,17 @@
     <template x-if="session2 && currentItem2()">
       <div>
         <!-- Header -->
-        <div class="flex items-center justify-between mb-4">
-          <button type="button" @click="cancelSession2()" class="p-2 hover:bg-gray-800 rounded-lg" title="Прервать">
+        <div class="flex items-center justify-between gap-2 mb-4">
+          <button type="button" @click="cancelSession2()" class="p-2 hover:bg-gray-800 rounded-lg shrink-0" title="Прервать">
             <i data-lucide="x" class="w-5 h-5 text-gray-400"></i>
           </button>
-          <div class="text-center">
+          <div class="text-center flex-1 min-w-0">
             <p class="text-xs text-gray-400">
               <span x-text="(session2.currentItemIndex + 1) + ' / ' + session2.items.length"></span>
             </p>
-            <p class="font-semibold text-sm" x-text="session2.templateName"></p>
+            <p class="font-semibold text-sm truncate" x-text="session2.templateName"></p>
           </div>
-          <button type="button" @click="openReplaceForCurrent()" class="p-2 hover:bg-gray-800 rounded-lg" title="Заменить упражнение">
+          <button type="button" @click="openReplaceForCurrent()" class="p-2 hover:bg-gray-800 rounded-lg shrink-0" title="Заменить упражнение">
             <i data-lucide="repeat" class="w-5 h-5 text-gray-400"></i>
           </button>
         </div>
@@ -1337,7 +1337,7 @@
         </div>
 
         <!-- Exercise card -->
-        <div class="bg-gray-800 rounded-2xl p-4 mb-3">
+        <div class="bg-gray-800 rounded-2xl p-4 mb-3 overflow-hidden">
           <div class="flex items-start justify-between gap-2 mb-2">
             <div class="flex-1 min-w-0">
               <p class="text-xs uppercase tracking-wide text-gray-400">
@@ -1351,8 +1351,8 @@
                   <span class="text-orange-300 ml-1">(заменено)</span>
                 </template>
               </p>
-              <h2 class="text-xl font-bold" x-text="currentExercise2()?.name || '—'"></h2>
-              <p class="text-xs text-gray-400 mt-1">
+              <h2 class="text-xl font-bold break-words" x-text="currentExercise2()?.name || '—'"></h2>
+              <p class="text-xs text-gray-400 mt-1 break-words">
                 <span x-text="formatExerciseType(currentExerciseType2())"></span>
                 <template x-if="currentExercise2()?.equipment">
                   <span> · <span x-text="formatEquipment(currentExercise2().equipment)"></span></span>
@@ -1413,22 +1413,22 @@
                 <label class="text-xs text-gray-400 mb-1 block">Вес, кг</label>
                 <div class="flex items-center gap-2">
                   <button type="button" @click="draftWeight = Math.max(0, draftWeight - (currentExercise2()?.stepKg || 2.5))"
-                          class="w-12 h-12 bg-gray-700 hover:bg-gray-600 rounded-xl text-xl font-bold">−</button>
+                          class="w-12 h-12 bg-gray-700 hover:bg-gray-600 rounded-xl text-xl font-bold shrink-0">−</button>
                   <input type="number" step="0.25" x-model.number="draftWeight"
-                         class="flex-1 bg-gray-700 rounded-xl px-3 py-3 text-2xl text-center font-bold" />
+                         class="flex-1 min-w-0 bg-gray-700 rounded-xl px-3 py-3 text-2xl text-center font-bold tabular-nums" />
                   <button type="button" @click="draftWeight = draftWeight + (currentExercise2()?.stepKg || 2.5)"
-                          class="w-12 h-12 bg-gray-700 hover:bg-gray-600 rounded-xl text-xl font-bold">+</button>
+                          class="w-12 h-12 bg-gray-700 hover:bg-gray-600 rounded-xl text-xl font-bold shrink-0">+</button>
                 </div>
               </div>
               <div>
                 <label class="text-xs text-gray-400 mb-1 block">Повторения</label>
                 <div class="flex items-center gap-2">
                   <button type="button" @click="draftReps = Math.max(0, draftReps - 1)"
-                          class="w-12 h-12 bg-gray-700 hover:bg-gray-600 rounded-xl text-xl font-bold">−</button>
+                          class="w-12 h-12 bg-gray-700 hover:bg-gray-600 rounded-xl text-xl font-bold shrink-0">−</button>
                   <input type="number" step="1" x-model.number="draftReps"
-                         class="flex-1 bg-gray-700 rounded-xl px-3 py-3 text-2xl text-center font-bold" />
+                         class="flex-1 min-w-0 bg-gray-700 rounded-xl px-3 py-3 text-2xl text-center font-bold tabular-nums" />
                   <button type="button" @click="draftReps = draftReps + 1"
-                          class="w-12 h-12 bg-gray-700 hover:bg-gray-600 rounded-xl text-xl font-bold">+</button>
+                          class="w-12 h-12 bg-gray-700 hover:bg-gray-600 rounded-xl text-xl font-bold shrink-0">+</button>
                 </div>
               </div>
             </div>
@@ -1440,61 +1440,80 @@
               <label class="text-xs text-gray-400 mb-1 block">Повторения</label>
               <div class="flex items-center gap-2">
                 <button type="button" @click="draftReps = Math.max(0, draftReps - 1)"
-                        class="w-12 h-12 bg-gray-700 hover:bg-gray-600 rounded-xl text-xl font-bold">−</button>
+                        class="w-12 h-12 bg-gray-700 hover:bg-gray-600 rounded-xl text-xl font-bold shrink-0">−</button>
                 <input type="number" step="1" x-model.number="draftReps"
-                       class="flex-1 bg-gray-700 rounded-xl px-3 py-3 text-2xl text-center font-bold" />
+                       class="flex-1 min-w-0 bg-gray-700 rounded-xl px-3 py-3 text-2xl text-center font-bold tabular-nums" />
                 <button type="button" @click="draftReps = draftReps + 1"
-                        class="w-12 h-12 bg-gray-700 hover:bg-gray-600 rounded-xl text-xl font-bold">+</button>
+                        class="w-12 h-12 bg-gray-700 hover:bg-gray-600 rounded-xl text-xl font-bold shrink-0">+</button>
               </div>
             </div>
           </template>
 
-          <!-- time_only -->
+          <!-- time_only: обратный отсчёт от target к 0 -->
           <template x-if="currentExerciseType2() === 'time_only'">
             <div>
-              <label class="text-xs text-gray-400 mb-1 block">Секунды</label>
+              <label class="text-xs text-gray-400 mb-1 block flex items-center justify-between">
+                <span>Таймер (обратный отсчёт)</span>
+                <span class="text-gray-500">цель: <span x-text="currentItem2()?.timeSec || 0"></span> сек</span>
+              </label>
               <div class="flex items-center gap-2">
                 <button type="button" @click="resetDraftTime()"
-                        class="w-12 h-12 bg-gray-700 hover:bg-gray-600 rounded-xl text-sm">↺</button>
-                <input type="number" step="1" x-model.number="draftTimeSec"
-                       class="flex-1 bg-gray-700 rounded-xl px-3 py-3 text-2xl text-center font-bold" />
+                        class="w-12 h-12 bg-gray-700 hover:bg-gray-600 rounded-xl text-sm shrink-0">↺</button>
+                <input type="number" step="1" x-model.number="draftTimeSec" min="0"
+                       class="flex-1 min-w-0 bg-gray-700 rounded-xl px-3 py-3 text-2xl text-center font-bold tabular-nums"
+                       :class="{
+                         'text-emerald-400 bg-emerald-500/10': _workTimerCompleted,
+                         'text-amber-400': draftTimeSec > 0 && draftTimeSec <= 3 && workTimer.running,
+                       }" />
                 <button type="button" @click="toggleWorkTimer()"
-                        class="w-12 h-12 rounded-xl text-xl"
+                        class="w-12 h-12 rounded-xl text-xl shrink-0"
                         :class="workTimer.running ? 'bg-red-500 hover:bg-red-600' : 'bg-emerald-500 hover:bg-emerald-600'">
                   <template x-if="workTimer.running"><i data-lucide="pause" class="w-5 h-5 mx-auto"></i></template>
                   <template x-if="!workTimer.running"><i data-lucide="play" class="w-5 h-5 mx-auto"></i></template>
                 </button>
               </div>
-              <p class="text-xs text-gray-500 mt-1">Запусти секундомер или введи число вручную.</p>
+              <template x-if="_workTimerCompleted">
+                <p class="text-xs text-emerald-400 mt-2">✓ Готово — жми «Записать подход»</p>
+              </template>
+              <template x-if="!_workTimerCompleted">
+                <p class="text-xs text-gray-500 mt-1">▶ Старт — отсчёт пойдёт к нулю, на 0 звук. ↺ — сброс к цели.</p>
+              </template>
             </div>
           </template>
 
-          <!-- weighted_time -->
+          <!-- weighted_time: вес + обратный отсчёт -->
           <template x-if="currentExerciseType2() === 'weighted_time'">
             <div class="space-y-3">
               <div>
                 <label class="text-xs text-gray-400 mb-1 block">Вес, кг</label>
                 <div class="flex items-center gap-2">
                   <button type="button" @click="draftWeight = Math.max(0, draftWeight - (currentExercise2()?.stepKg || 1.25))"
-                          class="w-12 h-12 bg-gray-700 hover:bg-gray-600 rounded-xl text-xl font-bold">−</button>
+                          class="w-12 h-12 bg-gray-700 hover:bg-gray-600 rounded-xl text-xl font-bold shrink-0">−</button>
                   <input type="number" step="0.25" x-model.number="draftWeight"
-                         class="flex-1 bg-gray-700 rounded-xl px-3 py-3 text-2xl text-center font-bold" />
+                         class="flex-1 min-w-0 bg-gray-700 rounded-xl px-3 py-3 text-2xl text-center font-bold tabular-nums" />
                   <button type="button" @click="draftWeight = draftWeight + (currentExercise2()?.stepKg || 1.25)"
-                          class="w-12 h-12 bg-gray-700 hover:bg-gray-600 rounded-xl text-xl font-bold">+</button>
+                          class="w-12 h-12 bg-gray-700 hover:bg-gray-600 rounded-xl text-xl font-bold shrink-0">+</button>
                 </div>
               </div>
               <div>
-                <label class="text-xs text-gray-400 mb-1 block">Секунды</label>
+                <label class="text-xs text-gray-400 mb-1 block flex items-center justify-between">
+                  <span>Таймер (обратный отсчёт)</span>
+                  <span class="text-gray-500">цель: <span x-text="currentItem2()?.timeSec || 0"></span> сек</span>
+                </label>
                 <div class="flex items-center gap-2">
                   <button type="button" @click="resetDraftTime()"
-                          class="w-12 h-12 bg-gray-700 hover:bg-gray-600 rounded-xl text-sm">↺</button>
-                  <input type="number" step="1" x-model.number="draftTimeSec"
-                         class="flex-1 bg-gray-700 rounded-xl px-3 py-3 text-2xl text-center font-bold" />
+                          class="w-12 h-12 bg-gray-700 hover:bg-gray-600 rounded-xl text-sm shrink-0">↺</button>
+                  <input type="number" step="1" x-model.number="draftTimeSec" min="0"
+                         class="flex-1 min-w-0 bg-gray-700 rounded-xl px-3 py-3 text-2xl text-center font-bold tabular-nums"
+                         :class="{
+                           'text-emerald-400 bg-emerald-500/10': _workTimerCompleted,
+                           'text-amber-400': draftTimeSec > 0 && draftTimeSec <= 3 && workTimer.running,
+                         }" />
                   <button type="button" @click="toggleWorkTimer()"
-                          class="w-12 h-12 rounded-xl"
+                          class="w-12 h-12 rounded-xl shrink-0"
                           :class="workTimer.running ? 'bg-red-500 hover:bg-red-600' : 'bg-emerald-500 hover:bg-emerald-600'">
                     <template x-if="workTimer.running"><i data-lucide="pause" class="w-5 h-5 mx-auto"></i></template>
-                  <template x-if="!workTimer.running"><i data-lucide="play" class="w-5 h-5 mx-auto"></i></template>
+                    <template x-if="!workTimer.running"><i data-lucide="play" class="w-5 h-5 mx-auto"></i></template>
                   </button>
                 </div>
               </div>

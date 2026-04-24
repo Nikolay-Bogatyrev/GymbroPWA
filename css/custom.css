@@ -5,6 +5,28 @@
   display: none !important;
 }
 
+/* Защита от горизонтального скролла на узких экранах (iPhone SE в Telegram WebView и т.п.) */
+html, body {
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+/* Input type=number в мобильных браузерах имеет собственный min-width,
+   который распирает flex-контейнер. Сжимаем. */
+input[type="number"] {
+  min-width: 0;
+}
+
+/* Убираем spin-arrows у number-инпутов (нам своих ± кнопок достаточно) */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
 /* Range slider styling */
 input[type="range"] {
   -webkit-appearance: none;
