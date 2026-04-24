@@ -73,6 +73,23 @@ const EXERCISE_VIDEO_URLS = {
   'hanging-leg-raise': 'https://www.youtube.com/watch?v=rbOJSK07AGA',
   'pallof-press': 'https://www.youtube.com/watch?v=SsQWYNxlYsQ',
   'bicycle-crunch': 'https://www.youtube.com/watch?v=1we3bh9uhqY',
+
+  // OUTDOOR / MORNING ROUTINE
+  'jumping-jack': 'https://www.youtube.com/watch?v=uLVt6u15L98',
+  'neck-shoulder-rolls': 'https://www.youtube.com/watch?v=DCQwQYRwBWE',
+  'hip-circles': 'https://www.youtube.com/watch?v=qkrJXGVj_OQ',
+  'leg-swings': 'https://www.youtube.com/watch?v=difYoBtZi2s',
+  'worlds-greatest-stretch': 'https://www.youtube.com/watch?v=-CiWQ2IvY34',
+  'cat-cow': 'https://www.youtube.com/watch?v=lD9ZDwlHmmE',
+  'cobra-stretch': 'https://www.youtube.com/watch?v=YYudWYM5Q9g',
+  'squat-bodyweight': 'https://www.youtube.com/watch?v=DlS-GAF8Edg',
+  'bar-hang': 'https://www.youtube.com/watch?v=1Bw0U2MWpAw',
+  'inverted-row': 'https://www.youtube.com/watch?v=5Vy6mjhXg7s',
+  'hamstring-stretch': 'https://www.youtube.com/watch?v=9ESpoUPqpFw',
+  'hip-flexor-stretch': 'https://www.youtube.com/watch?v=6o-GpPIGR5w',
+  'shoulder-pec-stretch': 'https://www.youtube.com/watch?v=M850sCj9LHQ',
+  'calf-stretch': 'https://www.youtube.com/watch?v=e01Nmo5eQgs',
+  'child-pose': 'https://www.youtube.com/watch?v=ESy8ujdrZrk',
 };
 
 // Применяем ссылки к банку
