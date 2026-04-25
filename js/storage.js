@@ -33,7 +33,7 @@ const KEYS = {
 
 const DEFAULT_SETTINGS = {
   sound: true,
-  vibration: true,
+  vibration: false, // iOS не поддерживает Vibration API; на Android можно включить вручную
   defaultRestSetSec: 60,
   defaultRestExerciseSec: 120,
   beepFreqHz: 880,

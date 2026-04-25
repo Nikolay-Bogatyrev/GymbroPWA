@@ -44,7 +44,7 @@
     base.iconSvg = function (name, extraClass) { return makeIconSvg(name, extraClass); };
 
     // ===== App update / версия =====
-    base.appVersion = 'v10';
+    base.appVersion = 'v11';
     base.appBuildDate = '2026-04-25';
     base.updateAvailable = false;
     base.updateInProgress = false;
@@ -201,6 +201,85 @@
       } catch (e) {
         this.backupStatus = '⚠️ Ошибка восстановления v1: ' + e.message;
       }
+    };
+
+    // ===== Подбор шаблона тренировки (заменяет старый select-workout) =====
+    base.goPickTemplate = function () {
+      this.reloadV2State();
+      this.page = 'pick-template';
+    };
+
+    // Возвращает уникальные шаблоны из активной программы + сегодняшний план первым
+    base.getProgramTemplatesForPicker = function () {
+      const out = [];
+      const seen = new Set();
+      // Сегодня по плану — первым
+      if (this.todayPlanV2 && !this.todayPlanV2.isRest && this.todayPlanV2.template) {
+        out.push({ ...this.todayPlanV2.template, _isToday: true });
+        seen.add(this.todayPlanV2.template.id);
+      }
+      // Из активной программы — уникальные шаблоны недельной сетки
+      if (this.activeProgram && this.activeProgram.week) {
+        for (const dayKey of ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']) {
+          const id = this.activeProgram.week[dayKey];
+          if (id && !seen.has(id)) {
+            const t = (window.PROGRAMS && PROGRAMS.getTemplateById) ? PROGRAMS.getTemplateById(id) : null;
+            if (t) { out.push(t); seen.add(t.id); }
+          }
+        }
+      }
+      return out;
+    };
+
+    base.getOtherTemplatesForPicker = function () {
+      const inProgram = new Set();
+      if (this.activeProgram && this.activeProgram.week) {
+        for (const dayKey of ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']) {
+          const id = this.activeProgram.week[dayKey];
+          if (id) inProgram.add(id);
+        }
+      }
+      return (this.templates || []).filter(t => !inProgram.has(t.id));
+    };
+
+    // ===== Unilateral / стороны тела =====
+    base.formatSideLabel = function (item) {
+      if (!item || !item._side) return '';
+      const kind = item._unilateral || 'side';
+      const map = {
+        leg:  { left: 'Левая нога', right: 'Правая нога' },
+        arm:  { left: 'Левая рука', right: 'Правая рука' },
+        side: { left: 'Левая сторона', right: 'Правая сторона' },
+      };
+      return (map[kind] || map.side)[item._side] || '';
+    };
+
+    // ===== iOS / vibration capability =====
+    base.isIOS = function () {
+      const ua = navigator.userAgent || '';
+      return /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    };
+
+    base.isStandalonePWA = function () {
+      return (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;
+    };
+
+    base.vibrationSupported = function () {
+      // Apple WebKit имеет navigator.vibrate как undefined, поэтому простая проверка работает
+      return typeof navigator.vibrate === 'function';
+    };
+
+    base.testVibration = function () {
+      if (!this.vibrationSupported()) {
+        alert(
+          'На этом устройстве вибрация в вебе не поддерживается.\n\n' +
+          (this.isIOS() ? 'iOS Safari и PWA на Home Screen не имеют доступа к Vibration API — это ограничение Apple, не зависит от настроек.\n\nИспользуй звук — он работает.' : 'Возможно браузер не поддерживает Vibration API.')
+        );
+        return;
+      }
+      try { navigator.vibrate([200, 80, 200]); } catch (e) {}
+      this.backupStatus = '✓ Вибрация послана: ' + (navigator.vibrate ? 'OK' : 'нет');
+      setTimeout(() => { this.backupStatus = ''; }, 3000);
     };
 
     base.getStorageOriginLabel = function () {
@@ -468,7 +547,7 @@
         : { items: baseItems, adjustments: [] };
 
       // Применяем подсказки прогрессии (если есть история)
-      const itemsWithSuggestions = adjusted.items.map(it => {
+      let itemsWithSuggestions = adjusted.items.map(it => {
         if (!window.Progression) return it;
         const sug = Progression.suggestNext(it);
         return {
@@ -479,6 +558,19 @@
           _hint: sug?.hint || null,
         };
       });
+
+      // Удвоение односторонних упражнений (unilateral): одна сторона за другой
+      const expanded = [];
+      for (const it of itemsWithSuggestions) {
+        const ex = (window.EXERCISE_BY_ID || {})[it.exerciseId];
+        if (ex && ex.unilateral) {
+          expanded.push({ ...it, _side: 'left',  _unilateral: ex.unilateral });
+          expanded.push({ ...it, _side: 'right', _unilateral: ex.unilateral });
+        } else {
+          expanded.push(it);
+        }
+      }
+      itemsWithSuggestions = expanded;
 
       this.session2 = {
         templateId: this.energyPreTemplateId,
@@ -556,6 +648,7 @@
         exerciseName: ex.name,
         timestamp: new Date().toISOString(),
       };
+      if (it._side) setRecord.side = it._side;
       if (ex.type === 'weighted_reps') {
         setRecord.weight = Number(this.draftWeight) || 0;
         setRecord.reps = Number(this.draftReps) || 0;

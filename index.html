@@ -175,7 +175,7 @@
     <!-- Start Workout Button -->
     <button
       type="button"
-      @click="page = 'select-workout'"
+      @click="goPickTemplate()"
       class="w-full bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl p-5 mb-4 flex items-center justify-between shadow-lg shadow-blue-500/20 active:scale-[0.98] transition-transform"
     >
       <div class="flex items-center gap-3">
@@ -1053,6 +1053,78 @@
   </div>
   </template>
 
+  <!-- ========== v2 СТРАНИЦА: ВЫБОР ТРЕНИРОВКИ (replaces select-workout) ========== -->
+  <template x-if="page === 'pick-template'">
+  <div class="min-h-screen p-4 pb-24">
+    <div class="flex items-center gap-3 mb-4">
+      <button type="button" @click="page = 'dashboard'" class="p-2 hover:bg-gray-800 rounded-lg">
+        <i data-lucide="chevron-left" class="w-6 h-6"></i>
+      </button>
+      <h1 class="text-xl font-bold">Выбери тренировку</h1>
+    </div>
+
+    <template x-if="activeProgram">
+      <div class="mb-2">
+        <p class="text-xs text-gray-400 uppercase tracking-wide">Активная программа</p>
+        <p class="text-sm text-emerald-300 font-semibold" x-text="activeProgram.name"></p>
+      </div>
+    </template>
+
+    <div class="space-y-2 mb-6">
+      <template x-for="t in getProgramTemplatesForPicker()" :key="t.id">
+        <button type="button" @click="openTemplate(t.id)"
+                class="w-full rounded-2xl p-4 flex items-center gap-3 active:scale-[0.99] transition-transform border"
+                :class="t._isToday ? 'bg-gradient-to-r from-emerald-500 to-blue-500 border-emerald-300/40 shadow-lg shadow-emerald-500/20' : 'bg-gray-800 hover:bg-gray-700 border-gray-700'">
+          <div class="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
+               :class="t._isToday ? 'bg-white/20' : 'bg-gray-700'">
+            <i data-lucide="dumbbell" class="w-5 h-5"></i>
+          </div>
+          <div class="flex-1 text-left min-w-0">
+            <p class="font-bold truncate" x-text="t.name"></p>
+            <p class="text-xs"
+               :class="t._isToday ? 'text-white/80' : 'text-gray-400'">
+              <template x-if="t._isToday"><span>★ Сегодня по плану · </span></template>
+              <span x-text="t.items.length"></span> упражнений · ≈
+              <span x-text="t.estimatedMinutes"></span> мин
+            </p>
+          </div>
+          <i data-lucide="chevron-right" class="w-5 h-5 shrink-0"></i>
+        </button>
+      </template>
+    </div>
+
+    <template x-if="getOtherTemplatesForPicker().length > 0">
+      <div>
+        <p class="text-xs text-gray-400 uppercase tracking-wide mb-2">Дополнительные шаблоны</p>
+        <div class="space-y-2">
+          <template x-for="t in getOtherTemplatesForPicker()" :key="t.id">
+            <button type="button" @click="openTemplate(t.id)"
+                    class="w-full bg-gray-800 hover:bg-gray-700 rounded-xl p-3 flex items-center gap-3 border border-gray-700">
+              <div class="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 bg-gray-700">
+                <template x-if="t.isMorning"><span class="text-xl">☀️</span></template>
+                <template x-if="t.isPrehab"><span class="text-xl">🛡</span></template>
+                <template x-if="!t.isMorning && !t.isPrehab"><i data-lucide="dumbbell" class="w-5 h-5"></i></template>
+              </div>
+              <div class="flex-1 text-left min-w-0">
+                <p class="font-semibold truncate" x-text="t.name"></p>
+                <p class="text-xs text-gray-400">
+                  <span x-text="t.items.length"></span> упр · ≈
+                  <span x-text="t.estimatedMinutes"></span> мин
+                </p>
+              </div>
+              <i data-lucide="chevron-right" class="w-4 h-4 text-gray-400 shrink-0"></i>
+            </button>
+          </template>
+        </div>
+      </div>
+    </template>
+
+    <p class="text-[10px] text-gray-500 mt-6 text-center">
+      Программу можно сменить в разделе «Программы» на дашборде.
+    </p>
+  </div>
+  </template>
+
   <!-- ========== v2 СТРАНИЦА: ПРОГРАММЫ ========== -->
   <template x-if="page === 'programs'">
   <div class="min-h-screen p-4 pb-24">
@@ -1380,8 +1452,16 @@
                 <template x-if="currentItem2()._swappedFrom">
                   <span class="text-orange-300 ml-1">(заменено)</span>
                 </template>
+                <template x-if="currentItem2()._side">
+                  <span class="text-cyan-300 ml-1">·
+                    <span x-text="currentItem2()._side === 'left' ? '◀ Левая' : 'Правая ▶'"></span>
+                  </span>
+                </template>
               </p>
               <h2 class="text-xl font-bold break-words" x-text="currentExercise2()?.name || '—'"></h2>
+              <template x-if="currentItem2()._side">
+                <p class="text-sm font-bold mt-1 text-cyan-300" x-text="formatSideLabel(currentItem2())"></p>
+              </template>
               <p class="text-xs text-gray-400 mt-1 break-words">
                 <span x-text="formatExerciseType(currentExerciseType2())"></span>
                 <template x-if="currentExercise2()?.equipment">
@@ -1633,14 +1713,27 @@
                class="w-5 h-5" />
       </label>
 
-      <label class="flex items-center justify-between gap-3 py-2">
-        <div>
-          <p class="font-semibold">Вибрация</p>
-          <p class="text-xs text-gray-400">При окончании отдыха (если поддерживается устройством)</p>
+      <template x-if="vibrationSupported()">
+        <label class="flex items-center justify-between gap-3 py-2">
+          <div class="flex-1 min-w-0">
+            <p class="font-semibold">Вибрация</p>
+            <p class="text-xs text-gray-400">При окончании отдыха</p>
+          </div>
+          <input type="checkbox" x-model="settings.vibration" @change="saveSettings()" class="w-5 h-5" />
+        </label>
+      </template>
+      <template x-if="!vibrationSupported() && isIOS()">
+        <div class="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 text-xs text-amber-100 space-y-1">
+          <p class="font-semibold text-amber-300">📳 Вибрация на iOS недоступна</p>
+          <p>iOS Safari и PWA не поддерживают Vibration API. Это ограничение Apple, не зависит от настроек устройства.</p>
+          <p>Чтобы услышать сигнал окончания отдыха:</p>
+          <ul class="list-disc list-inside ml-1 text-amber-100/80">
+            <li>Сними беззвучный режим (переключатель сбоку iPhone)</li>
+            <li>Подними громкость звонка</li>
+            <li>Один раз тапни по экрану после открытия приложения — это разблокирует Web Audio (ограничение Apple)</li>
+          </ul>
         </div>
-        <input type="checkbox" x-model="settings.vibration" @change="saveSettings()"
-               class="w-5 h-5" />
-      </label>
+      </template>
 
       <label class="flex items-center justify-between gap-3 py-2">
         <div>

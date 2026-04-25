@@ -122,6 +122,7 @@ const EXERCISE_BANK = [
   {
     id: 'landmine-press',
     name: 'Landmine press одной рукой',
+    unilateral: 'arm',
     muscles: ['chest', 'front_delt', 'triceps'],
     equipment: 'barbell',
     type: 'weighted_reps',
@@ -342,6 +343,7 @@ const EXERCISE_BANK = [
   {
     id: 'dumbbell-row',
     name: 'Тяга гантели одной рукой',
+    unilateral: 'arm',
     muscles: ['lats', 'mid_back', 'biceps'],
     equipment: 'dumbbell',
     type: 'weighted_reps',
@@ -465,6 +467,7 @@ const EXERCISE_BANK = [
   {
     id: 'bulgarian-split-squat',
     name: 'Болгарские сплит-приседания',
+    unilateral: 'leg',
     muscles: ['quads', 'glutes'],
     equipment: 'dumbbell',
     type: 'weighted_reps',
@@ -853,6 +856,7 @@ const EXERCISE_BANK = [
   {
     id: 'side-plank',
     name: 'Планка боковая',
+    unilateral: 'side',
     muscles: ['core', 'obliques'],
     equipment: 'bodyweight',
     type: 'time_only',
@@ -975,6 +979,7 @@ const EXERCISE_BANK = [
   {
     id: 'leg-swings',
     name: 'Махи ногой вперёд-назад',
+    unilateral: 'leg',
     muscles: ['hip_flexors', 'hamstrings', 'glutes'],
     equipment: 'bodyweight',
     type: 'time_only',
@@ -990,6 +995,7 @@ const EXERCISE_BANK = [
   {
     id: 'worlds-greatest-stretch',
     name: 'Самая большая растяжка (World\'s Greatest Stretch)',
+    unilateral: 'leg',
     muscles: ['hip_flexors', 'hamstrings', 'core', 'rear_delt'],
     equipment: 'bodyweight',
     type: 'time_only',
@@ -1080,6 +1086,7 @@ const EXERCISE_BANK = [
   {
     id: 'hamstring-stretch',
     name: 'Растяжка задней поверхности бедра',
+    unilateral: 'leg',
     muscles: ['hamstrings'],
     equipment: 'bodyweight',
     type: 'time_only',
@@ -1095,6 +1102,7 @@ const EXERCISE_BANK = [
   {
     id: 'hip-flexor-stretch',
     name: 'Растяжка сгибателей бедра (выпад)',
+    unilateral: 'leg',
     muscles: ['hip_flexors', 'quads'],
     equipment: 'bodyweight',
     type: 'time_only',
@@ -1110,6 +1118,7 @@ const EXERCISE_BANK = [
   {
     id: 'shoulder-pec-stretch',
     name: 'Растяжка груди и плеча на турнике',
+    unilateral: 'arm',
     muscles: ['chest', 'front_delt'],
     equipment: 'bodyweight',
     type: 'time_only',
@@ -1125,6 +1134,7 @@ const EXERCISE_BANK = [
   {
     id: 'calf-stretch',
     name: 'Растяжка икр',
+    unilateral: 'leg',
     muscles: ['calves'],
     equipment: 'bodyweight',
     type: 'time_only',
