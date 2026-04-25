@@ -1280,6 +1280,16 @@
               <!-- Inline player под карточкой -->
               <template x-if="isInlineVideoOpen(item.exerciseId) && getExerciseEmbedUrl(getTemplateItemExercise(item))">
                 <div class="mt-3 bg-black rounded-lg overflow-hidden">
+                  <div class="flex items-center justify-between gap-2 px-2 py-1 bg-gray-900/80 text-xs">
+                    <span class="text-gray-400 truncate">
+                      <template x-if="!videoSoundEnabled"><span>🎧 без звука</span></template>
+                      <template x-if="videoSoundEnabled"><span class="text-amber-300">⚠️ со звуком</span></template>
+                    </span>
+                    <button type="button" @click="toggleVideoSound()"
+                            class="flex items-center gap-1 px-2 py-1 rounded shrink-0"
+                            :class="videoSoundEnabled ? 'bg-amber-500/20 text-amber-200' : 'bg-gray-700 text-gray-300'"
+                            x-html="(videoSoundEnabled ? iconSvg('volume-2','w-4 h-4') : iconSvg('volume-x','w-4 h-4'))"></button>
+                  </div>
                   <div class="relative" style="padding-bottom: 56.25%; height: 0;">
                     <iframe :src="getExerciseEmbedUrl(getTemplateItemExercise(item))"
                             class="absolute inset-0 w-full h-full"
@@ -1486,6 +1496,16 @@
           <!-- Inline video -->
           <template x-if="currentItem2() && isInlineVideoOpen(currentItem2().exerciseId) && getExerciseEmbedUrl(currentExercise2())">
             <div class="bg-black rounded-lg overflow-hidden mb-3">
+              <div class="flex items-center justify-between gap-2 px-2 py-1 bg-gray-900/80 text-xs">
+                <span class="text-gray-400 truncate">
+                  <template x-if="!videoSoundEnabled"><span>🎧 без звука — фоновая музыка играет</span></template>
+                  <template x-if="videoSoundEnabled"><span class="text-amber-300">⚠️ звук включён — фоновая музыка прерывается</span></template>
+                </span>
+                <button type="button" @click="toggleVideoSound()"
+                        class="flex items-center gap-1 px-2 py-1 rounded shrink-0"
+                        :class="videoSoundEnabled ? 'bg-amber-500/20 text-amber-200' : 'bg-gray-700 text-gray-300'"
+                        x-html="(videoSoundEnabled ? iconSvg('volume-2','w-4 h-4') : iconSvg('volume-x','w-4 h-4'))"></button>
+              </div>
               <div class="relative" style="padding-bottom: 56.25%; height: 0;">
                 <iframe :src="getExerciseEmbedUrl(currentExercise2())"
                         class="absolute inset-0 w-full h-full"
@@ -2108,12 +2128,18 @@
             </template>
             <template x-if="isInlineVideoOpen(bankSelectedId)">
               <div class="bg-black rounded-xl overflow-hidden">
-                <div class="flex items-center justify-between px-3 py-2 bg-gray-900/80">
-                  <span class="text-sm text-gray-300">Видео упражнения</span>
+                <div class="flex items-center justify-between gap-2 px-3 py-2 bg-gray-900/80">
+                  <span class="text-xs text-gray-400 truncate flex-1">
+                    <template x-if="!videoSoundEnabled"><span>🎧 без звука — фоновая музыка играет</span></template>
+                    <template x-if="videoSoundEnabled"><span class="text-amber-300">⚠️ со звуком — музыка прервётся</span></template>
+                  </span>
+                  <button type="button" @click="toggleVideoSound()"
+                          class="px-2 py-1 rounded shrink-0"
+                          :class="videoSoundEnabled ? 'bg-amber-500/20 text-amber-200' : 'bg-gray-700 text-gray-300'"
+                          x-html="(videoSoundEnabled ? iconSvg('volume-2','w-4 h-4') : iconSvg('volume-x','w-4 h-4'))"></button>
                   <button type="button" @click="closeInlineVideo()"
-                          class="p-1 hover:bg-gray-700 rounded">
-                    <i data-lucide="x" class="w-4 h-4"></i>
-                  </button>
+                          class="p-1 hover:bg-gray-700 rounded shrink-0"
+                          x-html="iconSvg('x','w-4 h-4')"></button>
                 </div>
                 <div class="relative" style="padding-bottom: 56.25%; height: 0;">
                   <iframe :src="getExerciseEmbedUrl(getSelectedExercise())"

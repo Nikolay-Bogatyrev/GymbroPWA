@@ -28,6 +28,8 @@
     'search':      '<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>',
     'dumbbell':    '<path d="M14.4 14.4L9.6 9.6"/><path d="M18.657 21.485a2 2 0 1 1-2.829-2.828l-1.767 1.768a2 2 0 1 1-2.829-2.829l6.364-6.364a2 2 0 1 1 2.829 2.829l-1.768 1.767a2 2 0 1 1 2.828 2.829z"/><path d="m21.5 21.5-1.4-1.4"/><path d="M3.9 3.9 2.5 2.5"/><path d="M6.404 12.768a2 2 0 1 1-2.829-2.829l1.768-1.767a2 2 0 1 1-2.828-2.829l2.828-2.828a2 2 0 1 1 2.829 2.828l1.767-1.768a2 2 0 1 1 2.829 2.829z"/>',
     'activity':    '<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>',
+    'volume-2':    '<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>',
+    'volume-x':    '<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="22" y1="9" x2="16" y2="15"/><line x1="16" y1="9" x2="22" y2="15"/>',
   };
 
   function makeIconSvg(name, extraClass) {
@@ -44,7 +46,7 @@
     base.iconSvg = function (name, extraClass) { return makeIconSvg(name, extraClass); };
 
     // ===== App update / версия =====
-    base.appVersion = 'v11';
+    base.appVersion = 'v12';
     base.appBuildDate = '2026-04-25';
     base.updateAvailable = false;
     base.updateInProgress = false;
@@ -454,14 +456,32 @@
       return null;
     };
 
-    // Embed URL (для iframe) или null если URL — это search-страница
+    // Embed URL (для iframe) или null если URL — это search-страница.
+    // По умолчанию видео muted чтобы НЕ прерывать фоновую музыку (Spotify/Apple Music и т.п.).
+    // iOS прерывает музыку только для звуковых медиа; muted-видео считается беззвучным.
     base.getExerciseEmbedUrl = function (ex) {
       if (!ex) return null;
       const userUrl = ex.videoUrl;
-      if (!userUrl) return null; // если есть только search-link — embed не делаем
+      if (!userUrl) return null;
       const id = this.extractYouTubeId(userUrl);
       if (!id) return null;
-      return 'https://www.youtube.com/embed/' + id + '?autoplay=1&rel=0&modestbranding=1';
+      const muted = this.videoSoundEnabled ? 0 : 1;
+      // playsinline=1 — критично для iOS, чтобы видео не открывалось в fullscreen и не перехватывало аудио
+      return 'https://www.youtube.com/embed/' + id +
+             '?autoplay=1&rel=0&modestbranding=1&playsinline=1&mute=' + muted;
+    };
+
+    // Переключатель звука inline-плеера (общий для всех видео в сессии)
+    base.videoSoundEnabled = false;
+    base.toggleVideoSound = function () {
+      this.videoSoundEnabled = !this.videoSoundEnabled;
+      // Перетряхнём активный inline видео (если открыт), чтобы iframe перезагрузился с новым параметром mute
+      if (this.inlineVideoExerciseId) {
+        const id = this.inlineVideoExerciseId;
+        this.inlineVideoExerciseId = null;
+        const self = this;
+        setTimeout(() => { self.inlineVideoExerciseId = id; }, 50);
+      }
     };
 
     // Поисковый URL — на случай если embed недоступен
