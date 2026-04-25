@@ -44,8 +44,8 @@
     base.iconSvg = function (name, extraClass) { return makeIconSvg(name, extraClass); };
 
     // ===== App update / версия =====
-    base.appVersion = 'v9.1';
-    base.appBuildDate = '2026-04-24';
+    base.appVersion = 'v10';
+    base.appBuildDate = '2026-04-25';
     base.updateAvailable = false;
     base.updateInProgress = false;
 
@@ -84,6 +84,132 @@
 
     base.dismissUpdate = function () {
       this.updateAvailable = false;
+    };
+
+    // ===== Резервная копия (Backup / Restore) =====
+    base.backupStatus = '';
+
+    base.exportData = function () {
+      try {
+        if (!window.Storage || !Storage.exportAll) {
+          this.backupStatus = '⚠️ storage не загружен';
+          return;
+        }
+        const data = Storage.exportAll();
+        const text = JSON.stringify(data, null, 2);
+        const blob = new Blob([text], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        const ts = new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-');
+        a.href = url;
+        a.download = `gymbro-backup-${ts}.json`;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        }, 100);
+        const workoutsCount = (Storage.getWorkouts() || []).length;
+        this.backupStatus = `✓ Скачано: ${workoutsCount} тренировок, ${Object.keys(data.keys).length} ключей`;
+        setTimeout(() => { this.backupStatus = ''; }, 6000);
+      } catch (e) {
+        console.error('exportData failed', e);
+        this.backupStatus = '⚠️ Ошибка экспорта: ' + e.message;
+      }
+    };
+
+    base.importDataFromFile = async function (event) {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+      try {
+        const text = await file.text();
+        const payload = JSON.parse(text);
+        if (!payload || !payload.keys) {
+          this.backupStatus = '⚠️ Файл не похож на бэкап GymBro';
+          return;
+        }
+        const mode = confirm(
+          `Восстановить из «${file.name}»?\n\n` +
+          `OK = ОБЪЕДИНИТЬ (добавить новые тренировки/программы/трекеры; настройки перезаписать)\n` +
+          `Cancel = только добавить если файл выглядит корректно`
+        ) ? 'merge' : null;
+        if (!mode) return;
+        const res = Storage.importAll(payload, { mode });
+        this.backupStatus = `✓ Импортировано: добавлено ${res.added || 0}, обновлено ${res.updated || 0}`;
+        // Перечитать всё
+        this.reloadV2State();
+        if (typeof this.loadData === 'function') this.loadData();
+        setTimeout(() => { this.backupStatus = ''; }, 8000);
+      } catch (e) {
+        console.error('import failed', e);
+        this.backupStatus = '⚠️ Ошибка импорта: ' + e.message;
+      } finally {
+        event.target.value = '';
+      }
+    };
+
+    base.replaceFromFile = async function (event) {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+      if (!confirm('⚠️ ВНИМАНИЕ: режим «заменить» полностью сотрёт текущие данные и запишет содержимое файла. Продолжить?')) {
+        event.target.value = '';
+        return;
+      }
+      try {
+        const text = await file.text();
+        const payload = JSON.parse(text);
+        if (!payload || !payload.keys) {
+          this.backupStatus = '⚠️ Файл не похож на бэкап GymBro';
+          return;
+        }
+        Storage.importAll(payload, { mode: 'replace' });
+        this.backupStatus = '✓ Восстановлено из бэкапа. Перезагружаем...';
+        setTimeout(() => window.location.reload(), 800);
+      } catch (e) {
+        console.error('replace failed', e);
+        this.backupStatus = '⚠️ Ошибка: ' + e.message;
+      } finally {
+        event.target.value = '';
+      }
+    };
+
+    base.hasV1Backup = function () {
+      try { return !!localStorage.getItem('gym_backup_v1'); } catch (e) { return false; }
+    };
+
+    base.restoreFromV1Backup = function () {
+      try {
+        const raw = localStorage.getItem('gym_backup_v1');
+        if (!raw) {
+          this.backupStatus = '⚠️ Авто-бэкап v1 не найден';
+          return;
+        }
+        const backup = JSON.parse(raw);
+        if (!confirm('Восстановить данные из автоматического бэкапа v1? Текущие тренировки будут объединены со старыми.')) return;
+        const keysCount = Object.keys(backup).filter(k => k !== '_backedUpAt').length;
+        // Превращаем backup-формат (key → raw JSON string) в payload для importAll
+        const payload = { _meta: { app: 'GymBro v1 backup' }, keys: {} };
+        for (const [k, v] of Object.entries(backup)) {
+          if (k === '_backedUpAt') continue;
+          payload.keys[k] = typeof v === 'string' ? v : JSON.stringify(v);
+        }
+        const res = Storage.importAll(payload, { mode: 'merge' });
+        this.backupStatus = `✓ Из v1: добавлено ${res.added || 0}, обновлено ${res.updated || 0} (из ${keysCount} ключей)`;
+        this.reloadV2State();
+        if (typeof this.loadData === 'function') this.loadData();
+        setTimeout(() => { this.backupStatus = ''; }, 8000);
+      } catch (e) {
+        this.backupStatus = '⚠️ Ошибка восстановления v1: ' + e.message;
+      }
+    };
+
+    base.getStorageOriginLabel = function () {
+      const isStandalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;
+      const ua = navigator.userAgent || '';
+      const isTelegram = /Telegram/.test(ua) || (window.Telegram && window.Telegram.WebApp);
+      if (isTelegram) return 'Telegram WebView';
+      if (isStandalone) return 'PWA на Home Screen';
+      return 'Браузер';
     };
 
     // ====== НОВОЕ STATE ======

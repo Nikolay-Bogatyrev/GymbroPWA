@@ -1719,12 +1719,62 @@
       </p>
     </div>
 
+    <!-- Резервная копия данных -->
+    <div class="bg-gray-800 rounded-2xl p-4 mb-3 space-y-3">
+      <h3 class="text-xs uppercase tracking-wide text-gray-400">Резервная копия</h3>
+
+      <p class="text-xs text-gray-400">
+        Контекст: <span class="text-gray-200" x-text="getStorageOriginLabel()"></span> ·
+        тренировок: <span class="text-gray-200 font-semibold" x-text="(window.Storage && Storage.getWorkouts && Storage.getWorkouts().length) || 0"></span>
+      </p>
+
+      <div class="grid grid-cols-2 gap-2">
+        <button type="button" @click="exportData()"
+                class="bg-emerald-500 hover:bg-emerald-600 rounded-lg py-2 text-sm font-semibold">
+          📥 Скачать .json
+        </button>
+        <label class="bg-gray-700 hover:bg-gray-600 rounded-lg py-2 text-sm font-semibold text-center cursor-pointer">
+          📤 Загрузить (объединить)
+          <input type="file" accept="application/json,.json" class="hidden"
+                 @change="importDataFromFile($event)" />
+        </label>
+      </div>
+
+      <details class="text-xs">
+        <summary class="text-gray-400 cursor-pointer">⚙️ Расширенно</summary>
+        <div class="mt-2 space-y-2">
+          <template x-if="hasV1Backup()">
+            <button type="button" @click="restoreFromV1Backup()"
+                    class="w-full bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 rounded-lg py-2 text-xs text-amber-200">
+              🗂 Восстановить из автоматического бэкапа v1
+            </button>
+          </template>
+          <label class="block bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 rounded-lg py-2 text-xs text-center cursor-pointer text-red-300">
+            ⚠️ Восстановить с заменой (стирает текущие данные!)
+            <input type="file" accept="application/json,.json" class="hidden"
+                   @change="replaceFromFile($event)" />
+          </label>
+        </div>
+      </details>
+
+      <template x-if="backupStatus">
+        <p class="text-xs text-blue-300" x-text="backupStatus"></p>
+      </template>
+
+      <p class="text-[10px] text-gray-500 leading-relaxed">
+        💡 Браузер Safari, PWA на Home Screen и Telegram WebView имеют
+        <strong>раздельные хранилища</strong> — данные между ними не синхронизируются.
+        Используй экспорт/импорт чтобы переносить прогресс между ними и
+        делать резервные копии перед обновлениями.
+      </p>
+    </div>
+
     <!-- Сервис -->
     <div class="bg-gray-800 rounded-2xl p-4 mb-3 space-y-2">
       <h3 class="text-xs uppercase tracking-wide text-gray-400">Сервис</h3>
       <p class="text-xs text-gray-400">
         Schema v<span x-text="(window.Storage && Storage.SCHEMA_VERSION) || '?'"></span> ·
-        Тренировок в логе: <span x-text="(window.Storage && Storage.getWorkouts && Storage.getWorkouts().length) || 0"></span> ·
+        Тренировок: <span x-text="(window.Storage && Storage.getWorkouts && Storage.getWorkouts().length) || 0"></span> ·
         Программ: <span x-text="programsList.length"></span> ·
         Трекеров: <span x-text="trackersList.length"></span>
       </p>

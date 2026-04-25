@@ -102,16 +102,16 @@ function backupV1IfNeeded() {
   }
 }
 
+// БЕЗОПАСНАЯ миграция: НЕ удаляет данные. Только бэкапит на всякий случай
+// и проставляет schema=2. Если у пользователя уже был v2-прогресс и
+// gym_schema_version пропал (iOS / Telegram частично чистят storage),
+// миграция НЕ сотрёт логи. v1 и v2 формат workouts совместим — старые
+// записи безопасно соседствуют с новыми.
 function migrateToV2() {
-  console.log('🔄 storage: migrating to v2 (clean start)…');
+  console.log('🔄 storage: ensuring schema v2 (non-destructive)');
   backupV1IfNeeded();
-  // Чистый старт: удаляем v1-ключи
-  const v1Keys = ['gym_workouts', 'gym_stats', 'gym_profile', 'gym_session', 'gym_templates', 'gym_inactive'];
-  for (const k of v1Keys) {
-    localStorage.removeItem(k);
-  }
   setSchemaVersion(2);
-  console.log('✅ storage: migration to v2 complete');
+  console.log('✅ storage: schema v2 ready');
 }
 
 function ensureSchema() {
@@ -119,6 +119,86 @@ function ensureSchema() {
   if (v < 2) {
     migrateToV2();
   }
+}
+
+// ============ EXPORT / IMPORT ============
+
+// Все ключи, относящиеся к приложению — для экспорта/импорта
+function getAppKeys() {
+  const keys = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (k && (k.startsWith('gym_') || k.startsWith('gym2_'))) keys.push(k);
+  }
+  return keys;
+}
+
+// Экспорт всех данных в JSON
+function exportAll() {
+  const data = {
+    _meta: {
+      app: 'GymBro',
+      schemaVersion: SCHEMA_VERSION,
+      exportedAt: new Date().toISOString(),
+      origin: typeof location !== 'undefined' ? location.origin : '',
+    },
+    keys: {},
+  };
+  for (const k of getAppKeys()) {
+    data.keys[k] = localStorage.getItem(k);
+  }
+  return data;
+}
+
+// Импорт. mode = 'replace' (стереть старое и записать) или 'merge' (объединить — для workouts/trackers/PRs).
+function importAll(payload, { mode = 'merge' } = {}) {
+  if (!payload || !payload.keys) throw new Error('invalid backup payload');
+
+  if (mode === 'replace') {
+    // Сначала удаляем все текущие gym_* ключи
+    for (const k of getAppKeys()) {
+      localStorage.removeItem(k);
+    }
+    // Затем восстанавливаем
+    for (const [k, v] of Object.entries(payload.keys)) {
+      if (typeof v === 'string') localStorage.setItem(k, v);
+    }
+    return { mode, applied: Object.keys(payload.keys).length };
+  }
+
+  // MERGE: для коллекций объединяем по id (workouts, trackers, programs, etc.)
+  // Для остальных ключей — берём из импорта если у нас нет, либо обновляем настройки
+  let added = 0, updated = 0;
+  for (const [k, raw] of Object.entries(payload.keys)) {
+    if (typeof raw !== 'string') continue;
+    const isCollection = ['gym_workouts', 'gym_programs', 'gym_trackers'].includes(k);
+    if (isCollection) {
+      let importArr = [];
+      try { importArr = JSON.parse(raw) || []; } catch (e) {}
+      if (!Array.isArray(importArr)) continue;
+      const currentRaw = localStorage.getItem(k);
+      let currentArr = [];
+      try { currentArr = currentRaw ? (JSON.parse(currentRaw) || []) : []; } catch (e) {}
+      const byId = new Map(currentArr.filter(it => it && it.id != null).map(it => [String(it.id), it]));
+      for (const it of importArr) {
+        if (!it || it.id == null) continue;
+        const id = String(it.id);
+        if (!byId.has(id)) { byId.set(id, it); added++; }
+        else { byId.set(id, it); updated++; }
+      }
+      const merged = Array.from(byId.values());
+      // Сортируем workouts по дате убыв
+      if (k === 'gym_workouts') {
+        merged.sort((a, b) => new Date(b.dateISO || b.date || 0) - new Date(a.dateISO || a.date || 0));
+      }
+      localStorage.setItem(k, JSON.stringify(merged));
+    } else {
+      // Settings, profile, PRs — перезаписываем целиком
+      localStorage.setItem(k, raw);
+      updated++;
+    }
+  }
+  return { mode, added, updated };
 }
 
 // ============ SETTINGS ============
@@ -332,6 +412,8 @@ const Storage = {
   getStats, saveStats,
   // exercise overrides
   getExerciseOverrides, setExerciseOverride, getExerciseMerged,
+  // export/import
+  exportAll, importAll, getAppKeys,
 };
 
 window.Storage = Storage;
