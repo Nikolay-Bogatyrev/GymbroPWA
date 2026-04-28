@@ -63,40 +63,45 @@ const PREHAB_TEMPLATE = {
 };
 
 // ============ УТРЕННЯЯ ЗАРЯДКА (улица + турник) ============
+// Правила отдыха:
+//   • разминка / мобильность / растяжки между собой — 10 сек
+//   • силовые подходы между собой — 60 сек
+//   • переход с силового на растяжку — 30 сек (или 0 если вкатываешься плавно)
+//   • последнее упражнение — 0 (закончил, можно идти)
 const TEMPLATE_DAILY_MORNING = {
   id: 'tpl-daily-morning',
   name: 'Утренняя зарядка (улица + турник)',
   estimatedMinutes: 18,
   isMorning: true,
   items: [
-    // === Разминка (динамическая) ===
-    { exerciseId: 'jumping-jack',         sets: 1, timeSec: 40, priority: 'A', supersetGroup: null, restSec: 15 },
+    // === Разминка (динамическая) — 10 сек ===
+    { exerciseId: 'jumping-jack',         sets: 1, timeSec: 40, priority: 'A', supersetGroup: null, restSec: 10 },
     { exerciseId: 'neck-shoulder-rolls',  sets: 1, timeSec: 30, priority: 'A', supersetGroup: null, restSec: 10 },
     { exerciseId: 'hip-circles',          sets: 1, timeSec: 30, priority: 'A', supersetGroup: null, restSec: 10 },
     { exerciseId: 'leg-swings',           sets: 1, timeSec: 30, priority: 'A', supersetGroup: null, restSec: 10 },
 
-    // === Мобильность ===
+    // === Мобильность — 10 сек ===
     { exerciseId: 'worlds-greatest-stretch', sets: 1, timeSec: 40, priority: 'B', supersetGroup: null, restSec: 10 },
     { exerciseId: 'cat-cow',                 sets: 1, timeSec: 30, priority: 'B', supersetGroup: null, restSec: 10 },
     { exerciseId: 'cobra-stretch',           sets: 1, timeSec: 30, priority: 'B', supersetGroup: null, restSec: 10 },
 
-    // === Ягодицы + тазовое дно (улучшение кровотока, мужское здоровье) ===
-    { exerciseId: 'glute-bridge',         sets: 2, reps: 15,    priority: 'B', supersetGroup: null, restSec: 30 },
-    { exerciseId: 'bird-dog',             sets: 2, reps: 8,     priority: 'B', supersetGroup: null, restSec: 20 },
-    { exerciseId: 'donkey-kick',          sets: 2, reps: 12,    priority: 'B', supersetGroup: null, restSec: 20 },
-    { exerciseId: 'kegel',                sets: 2, timeSec: 30, priority: 'B', supersetGroup: null, restSec: 15 },
+    // === Ягодицы + тазовое дно (силовые) — 60 сек между подходами ===
+    { exerciseId: 'glute-bridge',         sets: 2, reps: 15,    priority: 'B', supersetGroup: null, restSec: 60 },
+    { exerciseId: 'bird-dog',             sets: 2, reps: 8,     priority: 'B', supersetGroup: null, restSec: 60 },
+    { exerciseId: 'donkey-kick',          sets: 2, reps: 12,    priority: 'B', supersetGroup: null, restSec: 60 },
+    { exerciseId: 'kegel',                sets: 2, timeSec: 30, priority: 'B', supersetGroup: null, restSec: 60 },
 
-    // === Сила (короткая) ===
-    { exerciseId: 'bar-hang',           sets: 2, timeSec: 20, priority: 'B', supersetGroup: null, restSec: 30 },
+    // === Сила (короткая) — 60 сек, последнее перед растяжкой 30 сек ===
+    { exerciseId: 'bar-hang',           sets: 2, timeSec: 20, priority: 'B', supersetGroup: null, restSec: 60 },
     { exerciseId: 'pullup-pronated',    sets: 2, reps: 5,     priority: 'A', supersetGroup: null, restSec: 60 },
-    { exerciseId: 'pushup',             sets: 2, reps: 10,    priority: 'B', supersetGroup: null, restSec: 45 },
+    { exerciseId: 'pushup',             sets: 2, reps: 10,    priority: 'B', supersetGroup: null, restSec: 60 },
     { exerciseId: 'squat-bodyweight',   sets: 2, reps: 15,    priority: 'B', supersetGroup: null, restSec: 30 },
 
-    // === Заминка / растяжка ===
-    { exerciseId: 'hamstring-stretch',     sets: 1, timeSec: 30, priority: 'C', supersetGroup: null, restSec: 5 },
-    { exerciseId: 'hip-flexor-stretch',    sets: 1, timeSec: 30, priority: 'C', supersetGroup: null, restSec: 5 },
-    { exerciseId: 'shoulder-pec-stretch',  sets: 1, timeSec: 30, priority: 'C', supersetGroup: null, restSec: 5 },
-    { exerciseId: 'calf-stretch',          sets: 1, timeSec: 30, priority: 'C', supersetGroup: null, restSec: 5 },
+    // === Заминка / растяжка — 10 сек, последнее 0 ===
+    { exerciseId: 'hamstring-stretch',     sets: 1, timeSec: 30, priority: 'C', supersetGroup: null, restSec: 10 },
+    { exerciseId: 'hip-flexor-stretch',    sets: 1, timeSec: 30, priority: 'C', supersetGroup: null, restSec: 10 },
+    { exerciseId: 'shoulder-pec-stretch',  sets: 1, timeSec: 30, priority: 'C', supersetGroup: null, restSec: 10 },
+    { exerciseId: 'calf-stretch',          sets: 1, timeSec: 30, priority: 'C', supersetGroup: null, restSec: 10 },
     { exerciseId: 'child-pose',            sets: 1, timeSec: 30, priority: 'C', supersetGroup: null, restSec: 0 },
   ],
 };
@@ -110,12 +115,13 @@ const TEMPLATE_GLUTE_PELVIC = {
   estimatedMinutes: 8,
   isPelvicTargeted: true,
   items: [
-    { exerciseId: 'glute-bridge',             sets: 3, reps: 15,    priority: 'A', supersetGroup: null, restSec: 30 },
-    { exerciseId: 'single-leg-glute-bridge',  sets: 2, reps: 10,    priority: 'A', supersetGroup: null, restSec: 30 },
-    { exerciseId: 'donkey-kick',              sets: 2, reps: 12,    priority: 'B', supersetGroup: null, restSec: 20 },
-    { exerciseId: 'frog-pump',                sets: 2, reps: 15,    priority: 'B', supersetGroup: null, restSec: 30 },
-    { exerciseId: 'bird-dog',                 sets: 2, reps: 8,     priority: 'B', supersetGroup: null, restSec: 20 },
-    { exerciseId: 'kegel',                    sets: 3, timeSec: 30, priority: 'A', supersetGroup: null, restSec: 15 },
+    // Все силовые — 60 сек между подходами; последнее 0 (закончил)
+    { exerciseId: 'glute-bridge',             sets: 3, reps: 15,    priority: 'A', supersetGroup: null, restSec: 60 },
+    { exerciseId: 'single-leg-glute-bridge',  sets: 2, reps: 10,    priority: 'A', supersetGroup: null, restSec: 60 },
+    { exerciseId: 'donkey-kick',              sets: 2, reps: 12,    priority: 'B', supersetGroup: null, restSec: 60 },
+    { exerciseId: 'frog-pump',                sets: 2, reps: 15,    priority: 'B', supersetGroup: null, restSec: 60 },
+    { exerciseId: 'bird-dog',                 sets: 2, reps: 8,     priority: 'B', supersetGroup: null, restSec: 60 },
+    { exerciseId: 'kegel',                    sets: 3, timeSec: 30, priority: 'A', supersetGroup: null, restSec: 0 },
   ],
 };
 

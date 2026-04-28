@@ -4,7 +4,7 @@
 //   - manifest, иконки, изображения: cache-first
 //   - Внешние ресурсы (YouTube, CDN): не трогаем (default browser fetch)
 
-const CACHE_NAME = 'gymbroPWA-v14';
+const CACHE_NAME = 'gymbroPWA-v15';
 
 const STATIC_ASSETS = [
   './',

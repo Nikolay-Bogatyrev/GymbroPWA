@@ -46,7 +46,7 @@
     base.iconSvg = function (name, extraClass) { return makeIconSvg(name, extraClass); };
 
     // ===== App update / версия =====
-    base.appVersion = 'v13';
+    base.appVersion = 'v14';
     base.appBuildDate = '2026-04-28';
     base.updateAvailable = false;
     base.updateInProgress = false;
@@ -747,9 +747,12 @@
       this.stopRestV2();
       const it = this.currentItem2();
       const settings = (window.Storage && Storage.getSettings) ? Storage.getSettings() : { defaultRestSetSec: 60, defaultRestExerciseSec: 120 };
-      const sec = type === 'exercise'
-        ? (it?.restSec ? Math.max(it.restSec, settings.defaultRestExerciseSec) : settings.defaultRestExerciseSec)
-        : (it?.restSec || settings.defaultRestSetSec);
+      // Если у упражнения задан restSec — используем его как есть (для разминки/растяжек
+      // часто нужны короткие 10 секунд, а defaultRestExerciseSec был 120 — Math.max
+      // перетирал намерение шаблона). Дефолт берём только когда restSec не задан.
+      const sec = (typeof it?.restSec === 'number')
+        ? it.restSec
+        : (type === 'exercise' ? settings.defaultRestExerciseSec : settings.defaultRestSetSec);
       this.restRemaining2 = sec;
       this.restTotal2 = sec;
       this.restType2 = type;
