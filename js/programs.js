@@ -50,6 +50,27 @@ const TEMPLATE_BEGINNER_FB_B = {
   ],
 };
 
+const TEMPLATE_BEGINNER_FB_C = {
+  id: 'tpl-fullbody-c',
+  name: 'Full Body C — Compound Mix',
+  estimatedMinutes: 50,
+  items: [
+    // Quad-доминант (compound, тренажёр — безопасно для новичка)
+    { exerciseId: 'leg-press',                       sets: 3, reps: 8,  priority: 'A', supersetGroup: null, restSec: 120, weight: 60 },
+    // Вертикальный жим, нейтральный хват — безопасно для плеча
+    { exerciseId: 'dumbbell-shoulder-press-neutral', sets: 3, reps: 8,  priority: 'A', supersetGroup: null, restSec: 120, weight: 8 },
+    // Тяга гантели одной рукой — unilateral, удвоится в потоке
+    { exerciseId: 'dumbbell-row',                    sets: 3, reps: 10, priority: 'B', supersetGroup: null, restSec: 90,  weight: 10 },
+    // Hip thrust — основной для ягодиц, не повторяется в A/B
+    { exerciseId: 'hip-thrust',                      sets: 3, reps: 10, priority: 'B', supersetGroup: null, restSec: 90,  weight: 30 },
+    // Молотки + разгибания трицепса (суперсет для рук)
+    { exerciseId: 'hammer-curl',                     sets: 2, reps: 12, priority: 'C', supersetGroup: 'a',  restSec: 45,  weight: 6 },
+    { exerciseId: 'cable-triceps-pushdown',          sets: 2, reps: 12, priority: 'C', supersetGroup: 'a',  restSec: 45,  weight: 15 },
+    // Анти-ротация для core
+    { exerciseId: 'pallof-press',                    sets: 2, reps: 12, priority: 'C', supersetGroup: null, restSec: 45,  weight: 15 },
+  ],
+};
+
 const PREHAB_TEMPLATE = {
   id: 'tpl-prehab',
   name: 'Prehab плеч (5 мин)',
@@ -128,6 +149,7 @@ const TEMPLATE_GLUTE_PELVIC = {
 const DEFAULT_TEMPLATES = [
   TEMPLATE_BEGINNER_FB_A,
   TEMPLATE_BEGINNER_FB_B,
+  TEMPLATE_BEGINNER_FB_C,
   PREHAB_TEMPLATE,
   TEMPLATE_DAILY_MORNING,
   TEMPLATE_GLUTE_PELVIC,
@@ -135,16 +157,16 @@ const DEFAULT_TEMPLATES = [
 
 const PROGRAM_BEGINNER_FULL_BODY = {
   id: 'prog-beginner-fullbody',
-  name: 'Beginner Full Body A/B (3×/нед)',
+  name: 'Beginner Full Body A/B/C (3×/нед)',
   level: 'beginner',
   active: true,
-  // Mon/Wed/Fri рабочие, остальные — отдых. Чередование A/B/A → B/A/B.
+  // 3 тренировки в неделю: пн/ср/пт. Каждая — отдельный шаблон.
   week: {
     mon: 'tpl-fullbody-a',
     tue: null,
     wed: 'tpl-fullbody-b',
     thu: null,
-    fri: 'tpl-fullbody-a',
+    fri: 'tpl-fullbody-c',
     sat: null,
     sun: null,
   },
@@ -173,12 +195,21 @@ function getPlanForDate(date = new Date()) {
   return { date, dayKey: key, program, template, isRest: false };
 }
 
-// Инициализация: при первом запуске установить программу по умолчанию активной
+// Инициализация: при первом запуске установить программу по умолчанию активной.
+// При обновлении кода — синхронизируем недельную сетку и имя дефолтной программы
+// с актуальным значением (чтобы новые шаблоны/расписание появлялись у пользователя
+// без ручного действия).
 function ensureDefaultProgram() {
   if (typeof Storage === 'undefined') return;
   const programs = Storage.getPrograms();
-  if (!programs.find(p => p.id === PROGRAM_BEGINNER_FULL_BODY.id)) {
+  const existing = programs.find(p => p.id === PROGRAM_BEGINNER_FULL_BODY.id);
+  if (!existing) {
     Storage.upsertProgram(PROGRAM_BEGINNER_FULL_BODY);
+  } else {
+    // Обновляем сетку и имя; level/active оставляем как было если есть
+    existing.week = { ...PROGRAM_BEGINNER_FULL_BODY.week };
+    existing.name = PROGRAM_BEGINNER_FULL_BODY.name;
+    Storage.upsertProgram(existing);
   }
   if (!Storage.getActiveProgramId()) {
     Storage.setActiveProgramId(PROGRAM_BEGINNER_FULL_BODY.id);

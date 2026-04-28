@@ -98,12 +98,48 @@
       </div>
     </div>
 
-    <!-- Week Progress Card -->
+    <!-- Week Plan Card (план тренировок) -->
+    <div class="bg-gray-800 rounded-2xl p-4 mb-3 border border-gray-700">
+      <div class="flex justify-between items-center mb-2">
+        <div>
+          <p class="text-xs text-gray-400 uppercase tracking-wide">🎯 План тренировок</p>
+          <p class="text-sm text-gray-300">
+            <span class="text-2xl font-bold tabular-nums"
+                  :class="getMainWorkoutsThisWeek() >= getWeeklyTarget() ? 'text-emerald-400' : 'text-blue-300'"
+                  x-text="getMainWorkoutsThisWeek()"></span>
+            <span class="text-gray-500"> / <span x-text="getWeeklyTarget()"></span> в неделю</span>
+          </p>
+        </div>
+        <template x-if="getMainWorkoutsThisWeek() >= getWeeklyTarget()">
+          <span class="text-2xl">✅</span>
+        </template>
+      </div>
+      <!-- Прогресс-бар -->
+      <div class="h-2 bg-gray-700 rounded-full overflow-hidden">
+        <div class="h-full transition-all duration-500"
+             :class="getMainWorkoutsThisWeek() >= getWeeklyTarget() ? 'bg-emerald-500' : 'bg-blue-500'"
+             :style="'width: ' + getWeekPlanPct() + '%'"></div>
+      </div>
+      <!-- Сегодня сделано (любая активность) -->
+      <template x-if="getTodayActivities().length > 0">
+        <div class="mt-3 flex flex-wrap gap-1">
+          <span class="text-xs text-gray-400">Сегодня:</span>
+          <template x-for="a in getTodayActivities()" :key="a.id">
+            <span class="text-xs bg-gray-700 rounded-full px-2 py-0.5">
+              <span x-text="formatActivityIcon(a.category)"></span>
+              <span x-text="a.name"></span>
+            </span>
+          </template>
+        </div>
+      </template>
+    </div>
+
+    <!-- Week Progress Card (стрик активности по дням недели) -->
     <div class="bg-gray-800 rounded-2xl p-4 mb-4">
       <div class="flex justify-between items-center mb-3">
-        <span class="text-gray-400">Эта неделя</span>
+        <span class="text-gray-400">🔥 Стрик активности</span>
         <span class="text-lg font-semibold">
-          <span x-text="stats.weekCompleted"></span>/<span x-text="stats.weekTotal"></span>
+          <span x-text="stats.streak"></span> дн.
         </span>
       </div>
       

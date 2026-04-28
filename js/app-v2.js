@@ -46,7 +46,7 @@
     base.iconSvg = function (name, extraClass) { return makeIconSvg(name, extraClass); };
 
     // ===== App update / версия =====
-    base.appVersion = 'v14';
+    base.appVersion = 'v15';
     base.appBuildDate = '2026-04-28';
     base.updateAvailable = false;
     base.updateInProgress = false;
@@ -203,6 +203,65 @@
       } catch (e) {
         this.backupStatus = '⚠️ Ошибка восстановления v1: ' + e.message;
       }
+    };
+
+    // ===== План недели + активность сегодня =====
+
+    // Цель — количество non-null дней в активной программе (сколько полноценных
+    // тренировок запланировано в неделю).
+    base.getWeeklyTarget = function () {
+      if (!this.activeProgram || !this.activeProgram.week) return 3;
+      let n = 0;
+      for (const k of ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']) {
+        if (this.activeProgram.week[k]) n++;
+      }
+      return n || 3;
+    };
+
+    // Считаем «полноценные» тренировки (isMainWorkout) на этой неделе.
+    // Старые workouts без поля isMainWorkout считаем как полноценные (back-compat).
+    base.getMainWorkoutsThisWeek = function () {
+      if (!window.Storage || !this.stats || !this.stats.weekStart) return 0;
+      const start = new Date(this.stats.weekStart + 'T00:00:00');
+      const end = new Date(start.getTime() + 7 * 86400000);
+      const ws = Storage.getWorkouts();
+      let n = 0;
+      for (const w of ws) {
+        const d = new Date(w.dateISO || w.date || 0);
+        if (d < start || d >= end) continue;
+        // Старые записи (до v14) — без isMainWorkout. Считаем их основными,
+        // кроме тех у которых templateId явно morning/pelvic.
+        if (w.isMainWorkout === false) continue;
+        if (w.templateId === 'tpl-daily-morning' || w.templateId === 'tpl-prehab' || w.templateId === 'tpl-glute-pelvic') continue;
+        n++;
+      }
+      return n;
+    };
+
+    // Активности «сегодня» — список меток (зарядка / тренировка / тазовое дно / prehab)
+    base.getTodayActivities = function () {
+      if (!window.Storage) return [];
+      const today = new Date();
+      const todayKey = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+      const out = [];
+      for (const w of Storage.getWorkouts()) {
+        const d = new Date(w.dateISO || w.date || 0);
+        const k = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+        if (k !== todayKey) continue;
+        const cat = w.category || (w.templateId === 'tpl-daily-morning' ? 'morning' : w.templateId === 'tpl-prehab' ? 'prehab' : w.templateId === 'tpl-glute-pelvic' ? 'pelvic' : 'workout');
+        out.push({ id: w.id, category: cat, name: w.name || w.templateId || 'Активность' });
+      }
+      return out;
+    };
+
+    base.formatActivityIcon = function (cat) {
+      return ({ morning: '☀️', workout: '🏋', pelvic: '💪', prehab: '🛡', cardio: '🏃' })[cat] || '✓';
+    };
+
+    base.getWeekPlanPct = function () {
+      const t = this.getWeeklyTarget();
+      const d = this.getMainWorkoutsThisWeek();
+      return t > 0 ? Math.min(100, Math.round((d / t) * 100)) : 0;
     };
 
     // ===== Подбор шаблона тренировки (заменяет старый select-workout) =====
@@ -992,6 +1051,13 @@
     // ============ Завершение тренировки v2 ============
     base.finishWorkout2 = function () {
       if (!this.session2) return;
+      // Помечаем «полноценная тренировка» vs «зарядка/растяжка/prehab»:
+      // только основные шаблоны идут в счётчик плана недели.
+      const tpl = (window.PROGRAMS && PROGRAMS.getTemplateById)
+        ? PROGRAMS.getTemplateById(this.session2.templateId)
+        : null;
+      const isMainWorkout = !(tpl && (tpl.isMorning || tpl.isPrehab || tpl.isPelvicTargeted));
+
       const workout = {
         id: Date.now(),
         date: new Date().toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' }),
@@ -1001,6 +1067,8 @@
         programId: this.session2.programId,
         type: 'strength_v2',
         name: this.session2.templateName || 'Тренировка',
+        isMainWorkout: isMainWorkout,
+        category: tpl ? (tpl.isMorning ? 'morning' : tpl.isPrehab ? 'prehab' : tpl.isPelvicTargeted ? 'pelvic' : 'workout') : 'workout',
         energyPre: this.session2.energyPre,
         tags: this.session2.tags,
         adjustments: this.session2.adjustments,

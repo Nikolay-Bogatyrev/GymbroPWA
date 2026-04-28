@@ -94,7 +94,7 @@ const EXERCISE_VIDEO_URLS = {
   // GLUTES + PELVIC FLOOR
   'glute-bridge': 'https://www.youtube.com/watch?v=8bbE64NuDTU',
   'single-leg-glute-bridge': 'https://www.youtube.com/watch?v=VUl8R0kn6v4',
-  'kegel': 'https://www.youtube.com/watch?v=GgRUroD8c0o',
+  'kegel': 'https://www.youtube.com/watch?v=MJ7EfGu03-0',
   'bird-dog': 'https://www.youtube.com/watch?v=ZdAHe9_HeEw',
   'donkey-kick': 'https://www.youtube.com/watch?v=KgghFOMKnkE',
   'frog-pump': 'https://www.youtube.com/watch?v=rgljhH1X4vc',
