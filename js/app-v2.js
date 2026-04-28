@@ -46,7 +46,7 @@
     base.iconSvg = function (name, extraClass) { return makeIconSvg(name, extraClass); };
 
     // ===== App update / версия =====
-    base.appVersion = 'v15';
+    base.appVersion = 'v16';
     base.appBuildDate = '2026-04-28';
     base.updateAvailable = false;
     base.updateInProgress = false;
@@ -262,6 +262,41 @@
       const t = this.getWeeklyTarget();
       const d = this.getMainWorkoutsThisWeek();
       return t > 0 ? Math.min(100, Math.round((d / t) * 100)) : 0;
+    };
+
+    // Текст для кнопки «Начать тренировку» — синхронизируется с активной программой,
+    // не из захардкоженного getTodayPlan() в app.js.
+    base.getTodayPlanLabel = function () {
+      const days = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
+      const today = days[new Date().getDay()];
+      if (!this.todayPlanV2 || this.todayPlanV2.isRest || !this.todayPlanV2.template) {
+        return `Сегодня: ${today} — день отдыха`;
+      }
+      return `Сегодня: ${today} — ${this.todayPlanV2.template.name}`;
+    };
+
+    // Сделана ли сегодня активность определённой категории (morning / workout / pelvic / prehab)
+    base.isCategoryDoneToday = function (category) {
+      const acts = this.getTodayActivities();
+      return acts.some(a => a.category === category);
+    };
+
+    // Выполнена ли сегодня тренировка по плану (конкретный templateId)
+    base.isTodayPlanDone = function () {
+      if (!this.todayPlanV2 || !this.todayPlanV2.template) return false;
+      const tplId = this.todayPlanV2.template.id;
+      const acts = this.getTodayActivities();
+      // Также проверяем по templateId совпадение
+      if (!window.Storage) return false;
+      const today = new Date();
+      const todayKey = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+      for (const w of Storage.getWorkouts()) {
+        if (w.templateId !== tplId) continue;
+        const d = new Date(w.dateISO || w.date || 0);
+        const k = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+        if (k === todayKey) return true;
+      }
+      return false;
     };
 
     // ===== Подбор шаблона тренировки (заменяет старый select-workout) =====

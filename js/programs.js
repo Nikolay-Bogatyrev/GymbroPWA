@@ -157,17 +157,17 @@ const DEFAULT_TEMPLATES = [
 
 const PROGRAM_BEGINNER_FULL_BODY = {
   id: 'prog-beginner-fullbody',
-  name: 'Beginner Full Body A/B/C (3×/нед)',
+  name: 'Beginner Full Body A/B/C (вт/чт/сб)',
   level: 'beginner',
   active: true,
-  // 3 тренировки в неделю: пн/ср/пт. Каждая — отдельный шаблон.
+  // 3 тренировки в неделю: вт/чт/сб. Каждая — отдельный шаблон.
   week: {
-    mon: 'tpl-fullbody-a',
-    tue: null,
-    wed: 'tpl-fullbody-b',
-    thu: null,
-    fri: 'tpl-fullbody-c',
-    sat: null,
+    mon: null,
+    tue: 'tpl-fullbody-a',
+    wed: null,
+    thu: 'tpl-fullbody-b',
+    fri: null,
+    sat: 'tpl-fullbody-c',
     sun: null,
   },
 };

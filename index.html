@@ -220,7 +220,7 @@
         </div>
         <div class="text-left">
           <p class="font-bold text-lg">Начать тренировку</p>
-          <p class="text-blue-200 text-sm" x-text="getTodayPlan()"></p>
+          <p class="text-blue-200 text-sm" x-text="getTodayPlanLabel()"></p>
         </div>
       </div>
       <i data-lucide="chevron-right" class="w-6 h-6"></i>
@@ -301,34 +301,67 @@
       <i data-lucide="chevron-right" class="w-4 h-4 text-gray-400"></i>
     </button>
 
-    <!-- v2: Сегодня по программе -->
-    <template x-if="todayPlanV2">
-      <div class="bg-gray-800 rounded-2xl p-4 mb-4 border border-gray-700">
-        <div class="flex items-center gap-2 mb-2">
-          <i data-lucide="target" class="w-5 h-5 text-emerald-400"></i>
-          <span class="font-semibold">Сегодня по программе</span>
-        </div>
-        <template x-if="todayPlanV2.isRest">
-          <p class="text-gray-400 text-sm">День отдыха. Можешь отметить прогулку или сделать лёгкую зарядку.</p>
-        </template>
-        <template x-if="!todayPlanV2.isRest && todayPlanV2.template">
-          <button
-            type="button"
-            @click="openTemplate(todayPlanV2.template.id)"
-            class="w-full text-left flex items-center justify-between"
-          >
-            <div>
-              <p class="font-semibold" x-text="todayPlanV2.template.name"></p>
+    <!-- v2: Сегодня по программе — чек-лист активностей дня -->
+    <div class="bg-gray-800 rounded-2xl p-4 mb-4 border border-gray-700">
+      <div class="flex items-center gap-2 mb-3">
+        <i data-lucide="target" class="w-5 h-5 text-emerald-400"></i>
+        <span class="font-semibold">Сегодня по программе</span>
+      </div>
+
+      <div class="space-y-2">
+        <!-- Утренняя зарядка (всегда доступна, неважно рабочий день или отдых) -->
+        <button type="button" @click="openTemplate('tpl-daily-morning')"
+                class="w-full flex items-center gap-3 rounded-xl p-3 transition-colors text-left border"
+                :class="isCategoryDoneToday('morning') ? 'bg-emerald-500/10 border-emerald-500/40' : 'bg-gray-700/50 hover:bg-gray-700 border-gray-700'">
+          <div class="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 text-xl"
+               :class="isCategoryDoneToday('morning') ? 'bg-emerald-500/20' : 'bg-gray-700'">
+            <span>☀️</span>
+          </div>
+          <div class="flex-1 min-w-0">
+            <p class="font-semibold text-sm">Утренняя зарядка</p>
+            <p class="text-xs text-gray-400">15–18 мин · разминка + ягодицы + сила + растяжка</p>
+          </div>
+          <template x-if="isCategoryDoneToday('morning')">
+            <span class="text-emerald-400 text-xl shrink-0">✓</span>
+          </template>
+          <template x-if="!isCategoryDoneToday('morning')">
+            <i data-lucide="chevron-right" class="w-5 h-5 text-gray-400 shrink-0"></i>
+          </template>
+        </button>
+
+        <!-- Тренировка по плану (если рабочий день) -->
+        <template x-if="todayPlanV2 && !todayPlanV2.isRest && todayPlanV2.template">
+          <button type="button" @click="openTemplate(todayPlanV2.template.id)"
+                  class="w-full flex items-center gap-3 rounded-xl p-3 transition-colors text-left border"
+                  :class="isTodayPlanDone() ? 'bg-emerald-500/10 border-emerald-500/40' : 'bg-gray-700/50 hover:bg-gray-700 border-gray-700'">
+            <div class="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 text-xl"
+                 :class="isTodayPlanDone() ? 'bg-emerald-500/20' : 'bg-gray-700'">
+              <span>🏋</span>
+            </div>
+            <div class="flex-1 min-w-0">
+              <p class="font-semibold text-sm" x-text="todayPlanV2.template.name"></p>
               <p class="text-xs text-gray-400">
                 <span x-text="todayPlanV2.template.items.length"></span> упражнений · ≈
                 <span x-text="todayPlanV2.template.estimatedMinutes"></span> мин
               </p>
             </div>
-            <i data-lucide="chevron-right" class="w-5 h-5 text-gray-400"></i>
+            <template x-if="isTodayPlanDone()">
+              <span class="text-emerald-400 text-xl shrink-0">✓</span>
+            </template>
+            <template x-if="!isTodayPlanDone()">
+              <i data-lucide="chevron-right" class="w-5 h-5 text-gray-400 shrink-0"></i>
+            </template>
           </button>
         </template>
+
+        <!-- День отдыха (нет тренировки в плане) -->
+        <template x-if="!todayPlanV2 || todayPlanV2.isRest || !todayPlanV2.template">
+          <div class="text-xs text-gray-500 px-3 py-2">
+            💤 Сегодня день отдыха по плану — кроме зарядки. Хочешь добавить — в разделе «Программы».
+          </div>
+        </template>
       </div>
-    </template>
+    </div>
 
     <!-- Recent Workouts -->
     <div class="bg-gray-800 rounded-2xl p-4">
