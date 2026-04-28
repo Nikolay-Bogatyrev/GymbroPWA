@@ -1103,7 +1103,8 @@
               <div class="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 bg-gray-700">
                 <template x-if="t.isMorning"><span class="text-xl">☀️</span></template>
                 <template x-if="t.isPrehab"><span class="text-xl">🛡</span></template>
-                <template x-if="!t.isMorning && !t.isPrehab"><i data-lucide="dumbbell" class="w-5 h-5"></i></template>
+                <template x-if="t.isPelvicTargeted"><span class="text-xl">💪</span></template>
+                <template x-if="!t.isMorning && !t.isPrehab && !t.isPelvicTargeted"><i data-lucide="dumbbell" class="w-5 h-5"></i></template>
               </div>
               <div class="flex-1 text-left min-w-0">
                 <p class="font-semibold truncate" x-text="t.name"></p>

@@ -66,7 +66,7 @@ const PREHAB_TEMPLATE = {
 const TEMPLATE_DAILY_MORNING = {
   id: 'tpl-daily-morning',
   name: 'Утренняя зарядка (улица + турник)',
-  estimatedMinutes: 15,
+  estimatedMinutes: 18,
   isMorning: true,
   items: [
     // === Разминка (динамическая) ===
@@ -79,6 +79,12 @@ const TEMPLATE_DAILY_MORNING = {
     { exerciseId: 'worlds-greatest-stretch', sets: 1, timeSec: 40, priority: 'B', supersetGroup: null, restSec: 10 },
     { exerciseId: 'cat-cow',                 sets: 1, timeSec: 30, priority: 'B', supersetGroup: null, restSec: 10 },
     { exerciseId: 'cobra-stretch',           sets: 1, timeSec: 30, priority: 'B', supersetGroup: null, restSec: 10 },
+
+    // === Ягодицы + тазовое дно (улучшение кровотока, мужское здоровье) ===
+    { exerciseId: 'glute-bridge',         sets: 2, reps: 15,    priority: 'B', supersetGroup: null, restSec: 30 },
+    { exerciseId: 'bird-dog',             sets: 2, reps: 8,     priority: 'B', supersetGroup: null, restSec: 20 },
+    { exerciseId: 'donkey-kick',          sets: 2, reps: 12,    priority: 'B', supersetGroup: null, restSec: 20 },
+    { exerciseId: 'kegel',                sets: 2, timeSec: 30, priority: 'B', supersetGroup: null, restSec: 15 },
 
     // === Сила (короткая) ===
     { exerciseId: 'bar-hang',           sets: 2, timeSec: 20, priority: 'B', supersetGroup: null, restSec: 30 },
@@ -95,7 +101,31 @@ const TEMPLATE_DAILY_MORNING = {
   ],
 };
 
-const DEFAULT_TEMPLATES = [TEMPLATE_BEGINNER_FB_A, TEMPLATE_BEGINNER_FB_B, PREHAB_TEMPLATE, TEMPLATE_DAILY_MORNING];
+// ============ ЦЕЛЕВОЙ БЛОК: ЯГОДИЦЫ И ТАЗОВОЕ ДНО (8 мин) ============
+// Самостоятельный мини-комплекс. Можно делать без разминки/растяжки —
+// дополнение к основной тренировке или вечерний короткий блок.
+const TEMPLATE_GLUTE_PELVIC = {
+  id: 'tpl-glute-pelvic',
+  name: 'Ягодицы + тазовое дно (8 мин)',
+  estimatedMinutes: 8,
+  isPelvicTargeted: true,
+  items: [
+    { exerciseId: 'glute-bridge',             sets: 3, reps: 15,    priority: 'A', supersetGroup: null, restSec: 30 },
+    { exerciseId: 'single-leg-glute-bridge',  sets: 2, reps: 10,    priority: 'A', supersetGroup: null, restSec: 30 },
+    { exerciseId: 'donkey-kick',              sets: 2, reps: 12,    priority: 'B', supersetGroup: null, restSec: 20 },
+    { exerciseId: 'frog-pump',                sets: 2, reps: 15,    priority: 'B', supersetGroup: null, restSec: 30 },
+    { exerciseId: 'bird-dog',                 sets: 2, reps: 8,     priority: 'B', supersetGroup: null, restSec: 20 },
+    { exerciseId: 'kegel',                    sets: 3, timeSec: 30, priority: 'A', supersetGroup: null, restSec: 15 },
+  ],
+};
+
+const DEFAULT_TEMPLATES = [
+  TEMPLATE_BEGINNER_FB_A,
+  TEMPLATE_BEGINNER_FB_B,
+  PREHAB_TEMPLATE,
+  TEMPLATE_DAILY_MORNING,
+  TEMPLATE_GLUTE_PELVIC,
+];
 
 const PROGRAM_BEGINNER_FULL_BODY = {
   id: 'prog-beginner-fullbody',

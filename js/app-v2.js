@@ -46,8 +46,8 @@
     base.iconSvg = function (name, extraClass) { return makeIconSvg(name, extraClass); };
 
     // ===== App update / версия =====
-    base.appVersion = 'v12';
-    base.appBuildDate = '2026-04-25';
+    base.appVersion = 'v13';
+    base.appBuildDate = '2026-04-28';
     base.updateAvailable = false;
     base.updateInProgress = false;
 
