@@ -46,7 +46,7 @@
     base.iconSvg = function (name, extraClass) { return makeIconSvg(name, extraClass); };
 
     // ===== App update / версия =====
-    base.appVersion = 'v16';
+    base.appVersion = 'v17';
     base.appBuildDate = '2026-04-28';
     base.updateAvailable = false;
     base.updateInProgress = false;
@@ -221,8 +221,10 @@
     // Считаем «полноценные» тренировки (isMainWorkout) на этой неделе.
     // Старые workouts без поля isMainWorkout считаем как полноценные (back-compat).
     base.getMainWorkoutsThisWeek = function () {
-      if (!window.Storage || !this.stats || !this.stats.weekStart) return 0;
-      const start = new Date(this.stats.weekStart + 'T00:00:00');
+      if (!window.Storage) return 0;
+      const weekStart = (this.stats && this.stats.weekStart) || (typeof this.getWeekStart === 'function' ? this.getWeekStart() : null);
+      if (!weekStart) return 0;
+      const start = new Date(weekStart + 'T00:00:00');
       const end = new Date(start.getTime() + 7 * 86400000);
       const ws = Storage.getWorkouts();
       let n = 0;
@@ -467,6 +469,25 @@
       }
       originalInit.call(this);
       this.reloadV2State();
+
+      // Восстанавливаем профиль (имя/возраст), если был сохранён
+      if (window.Storage && Storage.getProfile) {
+        const saved = Storage.getProfile();
+        if (saved) {
+          this.profile = { ...this.profile, ...saved };
+          if (typeof this.calculateHRZones === 'function') this.calculateHRZones();
+        }
+      }
+
+      // Если weekStart не установлен (первый запуск / после миграции) — выставляем
+      // и пересчитываем статистику недели. Без этого getMainWorkoutsThisWeek
+      // возвращал 0 даже когда тренировки были.
+      if ((!this.stats.weekStart) && typeof this.getWeekStart === 'function') {
+        this.stats.weekStart = this.getWeekStart();
+        if (typeof this.recalculateWeekStats === 'function') this.recalculateWeekStats();
+        if (window.Storage && Storage.saveStats) Storage.saveStats(this.stats);
+      }
+
       this.v2Ready = true;
 
       // Unlock Web Audio при первом тапе/клике (нужно для iOS)
@@ -936,6 +957,13 @@
         Storage.saveSettings({ ...this.settings });
       }
     };
+    base.saveProfileChange = function () {
+      if (window.Storage && Storage.saveProfile) {
+        Storage.saveProfile({ name: this.profile.name, age: this.profile.age });
+      }
+      if (typeof this.calculateHRZones === 'function') this.calculateHRZones();
+    };
+
     base.testBeep = function () {
       if (window.GymTimer) {
         GymTimer.unlockAudio();

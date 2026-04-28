@@ -346,6 +346,18 @@ function savePR(exerciseId, pr) {
   safeSet(KEYS.prs, all);
 }
 
+// ============ PROFILE ============
+
+const KEY_PROFILE = 'gym2_profile';
+
+function getProfile() {
+  return safeGet(KEY_PROFILE, null);
+}
+
+function saveProfile(profile) {
+  safeSet(KEY_PROFILE, profile);
+}
+
 // ============ STATS ============
 
 function getStats() {
@@ -410,6 +422,8 @@ const Storage = {
   getPRs, savePR,
   // stats
   getStats, saveStats,
+  // profile
+  getProfile, saveProfile,
   // exercise overrides
   getExerciseOverrides, setExerciseOverride, getExerciseMerged,
   // export/import

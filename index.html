@@ -120,6 +120,18 @@
              :class="getMainWorkoutsThisWeek() >= getWeeklyTarget() ? 'bg-emerald-500' : 'bg-blue-500'"
              :style="'width: ' + getWeekPlanPct() + '%'"></div>
       </div>
+      <!-- Подпись с контекстом сегодняшнего дня -->
+      <p class="text-xs text-gray-500 mt-2">
+        <template x-if="todayPlanV2 && !todayPlanV2.isRest && todayPlanV2.template && !isTodayPlanDone()">
+          <span>📌 Сегодня по плану: <span class="text-blue-300 font-semibold" x-text="todayPlanV2.template.name"></span></span>
+        </template>
+        <template x-if="todayPlanV2 && !todayPlanV2.isRest && todayPlanV2.template && isTodayPlanDone()">
+          <span class="text-emerald-300">✓ Сегодняшняя тренировка засчитана</span>
+        </template>
+        <template x-if="!todayPlanV2 || todayPlanV2.isRest || !todayPlanV2.template">
+          <span>💤 Сегодня по плану — отдых</span>
+        </template>
+      </p>
       <!-- Сегодня сделано (любая активность) -->
       <template x-if="getTodayActivities().length > 0">
         <div class="mt-3 flex flex-wrap gap-1">
@@ -1886,14 +1898,12 @@
       <div class="grid grid-cols-2 gap-2">
         <div>
           <label class="text-xs text-gray-400 mb-1 block">Имя</label>
-          <input type="text" x-model="profile.name"
-                 @change="window.Storage && Storage.saveSettings && Storage.saveSettings({ profileName: profile.name })"
+          <input type="text" x-model="profile.name" @change="saveProfileChange()" @blur="saveProfileChange()"
                  class="w-full bg-gray-700 rounded-lg px-2 py-2 text-sm" />
         </div>
         <div>
           <label class="text-xs text-gray-400 mb-1 block">Возраст</label>
-          <input type="number" x-model.number="profile.age"
-                 @change="calculateHRZones()"
+          <input type="number" x-model.number="profile.age" @change="saveProfileChange()" @blur="saveProfileChange()"
                  class="w-full bg-gray-700 rounded-lg px-2 py-2 text-sm" />
         </div>
       </div>
