@@ -1245,15 +1245,47 @@
           <div class="grid grid-cols-7 gap-1">
             <template x-for="d in getProgramWeekDays(p)" :key="d.key">
               <button type="button"
-                      @click="d.templateId && openTemplate(d.templateId)"
+                      @click="startEditScheduleDay(p.id, d.key)"
                       class="rounded-lg p-2 text-center text-xs transition-colors"
-                      :class="d.templateId ? 'bg-emerald-500/20 hover:bg-emerald-500/30 cursor-pointer' : 'bg-gray-700/50 cursor-default'">
+                      :class="[
+                        d.templateId ? 'bg-emerald-500/20 hover:bg-emerald-500/30' : 'bg-gray-700/50 hover:bg-gray-700/80',
+                        (editingScheduleProgramId === p.id && editingScheduleDayKey === d.key) ? 'ring-2 ring-blue-400' : ''
+                      ]">
                 <p class="text-gray-300 font-semibold" x-text="d.label"></p>
                 <p class="text-[10px] text-gray-400 truncate"
                    x-text="d.templateId ? getTemplateNameById(d.templateId).replace('Full Body ', 'FB ') : 'отдых'"></p>
               </button>
             </template>
           </div>
+
+          <!-- Инлайн-пикер выбора шаблона на день -->
+          <template x-if="editingScheduleProgramId === p.id && editingScheduleDayKey">
+            <div class="mt-3 bg-gray-900/60 border border-gray-700 rounded-xl p-3 space-y-2">
+              <div class="flex items-center justify-between">
+                <p class="text-sm font-semibold">
+                  <span x-text="scheduleDayLabel(editingScheduleDayKey)"></span>
+                  <span class="text-gray-400 font-normal">— выбери тренировку</span>
+                </p>
+                <button type="button" @click="cancelEditScheduleDay()"
+                        class="text-xs text-gray-400 hover:text-gray-200 px-2 py-1">✕</button>
+              </div>
+              <div class="space-y-1">
+                <button type="button" @click="setScheduleDayTemplate(null)"
+                        class="w-full bg-gray-700 hover:bg-gray-600 rounded-lg px-3 py-2 text-sm text-left">
+                  💤 Отдых
+                </button>
+                <template x-for="t in templates" :key="t.id">
+                  <button type="button" @click="setScheduleDayTemplate(t.id)"
+                          class="w-full bg-emerald-500/15 hover:bg-emerald-500/25 rounded-lg px-3 py-2 text-sm text-left flex items-center justify-between gap-2">
+                    <span class="truncate" x-text="t.name"></span>
+                    <span class="text-[10px] text-gray-400 shrink-0">
+                      ≈<span x-text="t.estimatedMinutes"></span> мин
+                    </span>
+                  </button>
+                </template>
+              </div>
+            </div>
+          </template>
         </div>
       </template>
     </div>

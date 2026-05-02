@@ -406,6 +406,10 @@
     base.templates = [];
     base.todayPlanV2 = null; // { date, dayKey, template, isRest, program }
 
+    // Редактор недельного расписания (пикер выбора шаблона на день)
+    base.editingScheduleProgramId = null; // id программы, чью неделю редактируем
+    base.editingScheduleDayKey = null;    // 'mon'|'tue'|...|'sun'
+
     // Предустановленный выбор экрана: для Plan/Workout из программы
     base.selectedTemplateId = null;
 
@@ -1377,6 +1381,34 @@
       if (!window.Storage) return;
       Storage.setActiveProgramId(programId);
       this.reloadV2State();
+    };
+
+    // ===== Редактор недельного расписания =====
+    base.startEditScheduleDay = function (programId, dayKey) {
+      this.editingScheduleProgramId = programId;
+      this.editingScheduleDayKey = dayKey;
+    };
+
+    base.cancelEditScheduleDay = function () {
+      this.editingScheduleProgramId = null;
+      this.editingScheduleDayKey = null;
+    };
+
+    base.scheduleDayLabel = function (dayKey) {
+      return ({ mon: 'Понедельник', tue: 'Вторник', wed: 'Среда', thu: 'Четверг', fri: 'Пятница', sat: 'Суббота', sun: 'Воскресенье' })[dayKey] || dayKey;
+    };
+
+    base.setScheduleDayTemplate = function (templateId) {
+      if (!window.Storage || !this.editingScheduleProgramId || !this.editingScheduleDayKey) return;
+      const program = Storage.getPrograms().find(p => p.id === this.editingScheduleProgramId);
+      if (!program) return;
+      if (!program.week) program.week = {};
+      program.week[this.editingScheduleDayKey] = templateId || null;
+      Storage.upsertProgram(program);
+      this.cancelEditScheduleDay();
+      this.reloadV2State();
+      // Пересчитать сегодняшний план — он мог поменяться
+      this.todayPlanV2 = (window.PROGRAMS && PROGRAMS.getPlanForDate) ? PROGRAMS.getPlanForDate(new Date()) : null;
     };
 
     // Открыть детали шаблона

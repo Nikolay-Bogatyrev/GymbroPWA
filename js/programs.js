@@ -157,18 +157,18 @@ const DEFAULT_TEMPLATES = [
 
 const PROGRAM_BEGINNER_FULL_BODY = {
   id: 'prog-beginner-fullbody',
-  name: 'Beginner Full Body A/B/C (вт/чт/сб)',
+  name: 'Beginner Full Body A/B/C (вт/чт/вс)',
   level: 'beginner',
   active: true,
-  // 3 тренировки в неделю: вт/чт/сб. Каждая — отдельный шаблон.
+  // 3 тренировки в неделю: вт/чт/вс. Каждая — отдельный шаблон.
   week: {
     mon: null,
     tue: 'tpl-fullbody-a',
     wed: null,
     thu: 'tpl-fullbody-b',
     fri: null,
-    sat: 'tpl-fullbody-c',
-    sun: null,
+    sat: null,
+    sun: 'tpl-fullbody-c',
   },
 };
 
@@ -206,9 +206,17 @@ function ensureDefaultProgram() {
   if (!existing) {
     Storage.upsertProgram(PROGRAM_BEGINNER_FULL_BODY);
   } else {
-    // Обновляем сетку и имя; level/active оставляем как было если есть
-    existing.week = { ...PROGRAM_BEGINNER_FULL_BODY.week };
-    existing.name = PROGRAM_BEGINNER_FULL_BODY.name;
+    // Сохраняем пользовательскую недельную сетку (её можно править через UI).
+    // Заполняем недостающие ключи дней дефолтами, не затирая существующие.
+    const userWeek = existing.week || {};
+    const mergedWeek = { ...PROGRAM_BEGINNER_FULL_BODY.week };
+    for (const k of ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']) {
+      if (Object.prototype.hasOwnProperty.call(userWeek, k)) {
+        mergedWeek[k] = userWeek[k];
+      }
+    }
+    existing.week = mergedWeek;
+    if (!existing.name) existing.name = PROGRAM_BEGINNER_FULL_BODY.name;
     Storage.upsertProgram(existing);
   }
   if (!Storage.getActiveProgramId()) {
