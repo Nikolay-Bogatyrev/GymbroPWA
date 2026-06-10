@@ -406,12 +406,20 @@
     base.templates = [];
     base.todayPlanV2 = null; // { date, dayKey, template, isRest, program }
 
+    // Беговой чек-лист (лёгкие пробежки натощак до завтрака)
+    base.runningChecklist = [];
+
     // Редактор недельного расписания (пикер выбора шаблона на день)
     base.editingScheduleProgramId = null; // id программы, чью неделю редактируем
     base.editingScheduleDayKey = null;    // 'mon'|'tue'|...|'sun'
 
     // Предустановленный выбор экрана: для Plan/Workout из программы
     base.selectedTemplateId = null;
+
+    // Редактирование набора упражнений в шаблоне (template-view)
+    base.tplEditMode = false;     // включён ли режим редактирования
+    base.tplReplaceIndex = null;  // индекс item с открытым выбором замены; -1 = добавление нового
+    base.tplReplaceSearch = '';   // поиск в пикере замены
 
     // Трекеры
     base.trackersList = [];
@@ -520,6 +528,62 @@
       this.todayPlanV2 = (window.PROGRAMS && PROGRAMS.getPlanForDate) ? PROGRAMS.getPlanForDate(new Date()) : null;
       this.trackersList = Storage.getTrackers();
       this.settings = Storage.getSettings();
+      this.runningChecklist = Storage.getRunningChecklist();
+    };
+
+    // ====== БЕГОВОЙ ЧЕК-ЛИСТ (пробежки натощак) ======
+    base.runningDoneCount = function () {
+      return this.runningChecklist.filter(r => r.done).length;
+    };
+
+    base.toggleRun = function (id) {
+      const run = this.runningChecklist.find(r => r.id === id);
+      if (!run) return;
+      run.done = !run.done;
+      Storage.saveRunningChecklist(this.runningChecklist);
+    };
+
+    base.renameRun = function (id, name) {
+      const run = this.runningChecklist.find(r => r.id === id);
+      if (!run) return;
+      const trimmed = (name || '').trim();
+      run.name = trimmed || run.name; // пустое имя не сохраняем
+      Storage.saveRunningChecklist(this.runningChecklist);
+    };
+
+    base.resetRunningChecklist = function () {
+      this.runningChecklist.forEach(r => { r.done = false; });
+      Storage.saveRunningChecklist(this.runningChecklist);
+    };
+
+    // Ключи дней недели (для расписания пробежек)
+    base.WEEKDAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+    base.WEEKDAY_LABELS = { mon: 'Пн', tue: 'Вт', wed: 'Ср', thu: 'Чт', fri: 'Пт', sat: 'Сб', sun: 'Вс' };
+
+    base.todayWeekdayKey = function () {
+      const map = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+      return map[new Date().getDay()];
+    };
+
+    // Переключить день в расписании конкретной пробежки
+    base.toggleRunDay = function (id, dayKey) {
+      const run = this.runningChecklist.find(r => r.id === id);
+      if (!run) return;
+      if (!Array.isArray(run.days)) run.days = [];
+      const i = run.days.indexOf(dayKey);
+      if (i >= 0) run.days.splice(i, 1);
+      else run.days.push(dayKey);
+      Storage.saveRunningChecklist(this.runningChecklist);
+    };
+
+    base.isRunOnDay = function (run, dayKey) {
+      return Array.isArray(run.days) && run.days.includes(dayKey);
+    };
+
+    // Пробежки, запланированные на сегодня — показываются в плане ДО основной тренировки
+    base.getTodayRuns = function () {
+      const today = this.todayWeekdayKey();
+      return this.runningChecklist.filter(r => Array.isArray(r.days) && r.days.includes(today));
     };
 
     // ====== НАВИГАЦИЯ ======
@@ -1425,6 +1489,123 @@
     base.getTemplateItemExercise = function (item) {
       if (!item) return null;
       return (window.Storage && Storage.getExerciseMerged) ? Storage.getExerciseMerged(item.exerciseId) : null;
+    };
+
+    // ====== РЕДАКТИРОВАНИЕ НАБОРА УПРАЖНЕНИЙ В ШАБЛОНЕ ======
+    base.isTemplateCustomized = function () {
+      return !!(window.Storage && this.selectedTemplateId && Storage.getTemplateOverride(this.selectedTemplateId));
+    };
+
+    base.toggleTemplateEdit = function () {
+      this.tplEditMode = !this.tplEditMode;
+      this.tplReplaceIndex = null;
+      this.tplReplaceSearch = '';
+    };
+
+    // Сохраняет новый набор items как override и обновляет состояние v2
+    base._saveTemplateItems = function (items) {
+      if (!window.Storage || !this.selectedTemplateId) return;
+      Storage.setTemplateOverride(this.selectedTemplateId, { items });
+      this.reloadV2State();
+    };
+
+    base.startTemplateReplace = function (idx) {
+      this.tplReplaceIndex = idx;
+      this.tplReplaceSearch = '';
+    };
+
+    base.startTemplateAdd = function () {
+      this.tplReplaceIndex = -1; // режим добавления нового упражнения
+      this.tplReplaceSearch = '';
+    };
+
+    base.cancelTemplateReplace = function () {
+      this.tplReplaceIndex = null;
+      this.tplReplaceSearch = '';
+    };
+
+    base.isTemplateAdding = function () {
+      return this.tplReplaceIndex === -1;
+    };
+
+    // Кандидаты на замену: альтернативы текущего упражнения сверху + поиск по банку
+    base.getTemplateReplaceCandidates = function () {
+      if (!window.searchExercises) return [];
+      const tpl = this.getSelectedTemplate();
+      const curItem = (tpl && this.tplReplaceIndex != null && this.tplReplaceIndex >= 0)
+        ? tpl.items[this.tplReplaceIndex] : null;
+      const ex = curItem ? (window.EXERCISE_BY_ID || {})[curItem.exerciseId] : null;
+      const altList = (ex?.alts || [])
+        .map(id => (window.EXERCISE_BY_ID || {})[id])
+        .filter(Boolean);
+      const searched = searchExercises({ query: this.tplReplaceSearch });
+      const seen = new Set();
+      const out = [];
+      for (const e of altList) {
+        if (e.id === curItem?.exerciseId) continue;
+        if (!seen.has(e.id)) { seen.add(e.id); out.push({ ...e, _alt: true }); }
+      }
+      for (const e of searched) {
+        if (e.id === curItem?.exerciseId) continue;
+        if (!seen.has(e.id)) { seen.add(e.id); out.push(e); }
+      }
+      return out.slice(0, 40);
+    };
+
+    // Новый item шаблона с разумными дефолтами под тип упражнения
+    base._makeTemplateItem = function (ex) {
+      const item = { exerciseId: ex.id, sets: 3, priority: 'B', supersetGroup: null, restSec: ex.defaultRest || 60 };
+      if (ex.type === 'time_only' || ex.type === 'weighted_time') item.timeSec = 30;
+      else item.reps = 10;
+      if (ex.type === 'weighted_reps' || ex.type === 'weighted_time') item.weight = ex.stepKg || 0;
+      return item;
+    };
+
+    base.applyTemplateReplace = function (newExerciseId) {
+      const tpl = this.getSelectedTemplate();
+      if (!tpl) return;
+      const ex = (window.EXERCISE_BY_ID || {})[newExerciseId];
+      if (!ex) return;
+      const items = tpl.items.map(it => ({ ...it }));
+      if (this.tplReplaceIndex === -1) {
+        items.push(this._makeTemplateItem(ex));
+      } else if (this.tplReplaceIndex != null && items[this.tplReplaceIndex]) {
+        const it = items[this.tplReplaceIndex];
+        it.exerciseId = newExerciseId;
+        // Согласуем поля измерения с типом нового упражнения
+        if (ex.type === 'time_only' || ex.type === 'weighted_time') {
+          if (!it.timeSec) it.timeSec = 30;
+          delete it.reps;
+        } else {
+          if (!it.reps) it.reps = 10;
+          delete it.timeSec;
+        }
+        if (ex.type === 'weighted_reps' || ex.type === 'weighted_time') {
+          if (it.weight == null) it.weight = ex.stepKg || 0;
+        } else {
+          delete it.weight;
+        }
+      }
+      this._saveTemplateItems(items);
+      this.tplReplaceIndex = null;
+      this.tplReplaceSearch = '';
+    };
+
+    base.removeTemplateItem = function (idx) {
+      const tpl = this.getSelectedTemplate();
+      if (!tpl || tpl.items.length <= 1) return; // не оставляем пустой шаблон
+      const items = tpl.items.map(it => ({ ...it }));
+      items.splice(idx, 1);
+      this._saveTemplateItems(items);
+      if (this.tplReplaceIndex === idx) this.tplReplaceIndex = null;
+    };
+
+    base.resetTemplateEdits = function () {
+      if (!window.Storage || !this.selectedTemplateId) return;
+      Storage.clearTemplateOverride(this.selectedTemplateId);
+      this.reloadV2State();
+      this.tplReplaceIndex = null;
+      this.tplReplaceSearch = '';
     };
 
     // Подсказка следующего веса/повторений для slot шаблона (progression)

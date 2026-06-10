@@ -61,13 +61,13 @@ const TEMPLATE_BEGINNER_FB_C = {
     { exerciseId: 'dumbbell-shoulder-press-neutral', sets: 3, reps: 8,  priority: 'A', supersetGroup: null, restSec: 120, weight: 8 },
     // Тяга гантели одной рукой — unilateral, удвоится в потоке
     { exerciseId: 'dumbbell-row',                    sets: 3, reps: 10, priority: 'B', supersetGroup: null, restSec: 90,  weight: 10 },
-    // Hip thrust — основной для ягодиц, не повторяется в A/B
-    { exerciseId: 'hip-thrust',                      sets: 3, reps: 10, priority: 'B', supersetGroup: null, restSec: 90,  weight: 30 },
+    // Выпады с гантелями вперёд-назад — ягодицы/квадры (замена hip thrust со штангой)
+    { exerciseId: 'dumbbell-lunge',                  sets: 3, reps: 10, priority: 'B', supersetGroup: null, restSec: 90,  weight: 10 },
     // Молотки + разгибания трицепса (суперсет для рук)
     { exerciseId: 'hammer-curl',                     sets: 2, reps: 12, priority: 'C', supersetGroup: 'a',  restSec: 45,  weight: 6 },
     { exerciseId: 'cable-triceps-pushdown',          sets: 2, reps: 12, priority: 'C', supersetGroup: 'a',  restSec: 45,  weight: 15 },
-    // Анти-ротация для core
-    { exerciseId: 'pallof-press',                    sets: 2, reps: 12, priority: 'C', supersetGroup: null, restSec: 45,  weight: 15 },
+    // Core без блока/ручки (поворотный жим убран)
+    { exerciseId: 'bicycle-crunch',                  sets: 2, reps: 16, priority: 'C', supersetGroup: null, restSec: 45 },
   ],
 };
 
@@ -106,16 +106,16 @@ const TEMPLATE_DAILY_MORNING = {
     { exerciseId: 'cat-cow',                 sets: 1, timeSec: 30, priority: 'B', supersetGroup: null, restSec: 10 },
     { exerciseId: 'cobra-stretch',           sets: 1, timeSec: 30, priority: 'B', supersetGroup: null, restSec: 10 },
 
-    // === Ягодицы + тазовое дно (силовые) — 60 сек между подходами ===
+    // === Ягодицы (силовые) — 60 сек между подходами ===
     { exerciseId: 'glute-bridge',         sets: 2, reps: 15,    priority: 'B', supersetGroup: null, restSec: 60 },
     { exerciseId: 'bird-dog',             sets: 2, reps: 8,     priority: 'B', supersetGroup: null, restSec: 60 },
     { exerciseId: 'donkey-kick',          sets: 2, reps: 12,    priority: 'B', supersetGroup: null, restSec: 60 },
-    { exerciseId: 'kegel',                sets: 2, timeSec: 30, priority: 'B', supersetGroup: null, restSec: 60 },
 
-    // === Сила (короткая) — 60 сек, последнее перед растяжкой 30 сек ===
-    { exerciseId: 'bar-hang',           sets: 2, timeSec: 20, priority: 'B', supersetGroup: null, restSec: 60 },
+    // === Сила на турнике/брусьях — 60 сек, последнее перед растяжкой 30 сек ===
+    // Потягивания, отжимания, брусья (вис на турнике и кегель убраны).
     { exerciseId: 'pullup-pronated',    sets: 2, reps: 5,     priority: 'A', supersetGroup: null, restSec: 60 },
     { exerciseId: 'pushup',             sets: 2, reps: 10,    priority: 'B', supersetGroup: null, restSec: 60 },
+    { exerciseId: 'dip-chest',          sets: 2, reps: 8,     priority: 'B', supersetGroup: null, restSec: 60 },
     { exerciseId: 'squat-bodyweight',   sets: 2, reps: 15,    priority: 'B', supersetGroup: null, restSec: 30 },
 
     // === Заминка / растяжка — 10 сек, последнее 0 ===
@@ -127,12 +127,12 @@ const TEMPLATE_DAILY_MORNING = {
   ],
 };
 
-// ============ ЦЕЛЕВОЙ БЛОК: ЯГОДИЦЫ И ТАЗОВОЕ ДНО (8 мин) ============
+// ============ ЦЕЛЕВОЙ БЛОК: ЯГОДИЦЫ (8 мин) ============
 // Самостоятельный мини-комплекс. Можно делать без разминки/растяжки —
 // дополнение к основной тренировке или вечерний короткий блок.
 const TEMPLATE_GLUTE_PELVIC = {
   id: 'tpl-glute-pelvic',
-  name: 'Ягодицы + тазовое дно (8 мин)',
+  name: 'Ягодицы (8 мин)',
   estimatedMinutes: 8,
   isPelvicTargeted: true,
   items: [
@@ -141,8 +141,7 @@ const TEMPLATE_GLUTE_PELVIC = {
     { exerciseId: 'single-leg-glute-bridge',  sets: 2, reps: 10,    priority: 'A', supersetGroup: null, restSec: 60 },
     { exerciseId: 'donkey-kick',              sets: 2, reps: 12,    priority: 'B', supersetGroup: null, restSec: 60 },
     { exerciseId: 'frog-pump',                sets: 2, reps: 15,    priority: 'B', supersetGroup: null, restSec: 60 },
-    { exerciseId: 'bird-dog',                 sets: 2, reps: 8,     priority: 'B', supersetGroup: null, restSec: 60 },
-    { exerciseId: 'kegel',                    sets: 3, timeSec: 30, priority: 'A', supersetGroup: null, restSec: 0 },
+    { exerciseId: 'bird-dog',                 sets: 2, reps: 8,     priority: 'B', supersetGroup: null, restSec: 0 },
   ],
 };
 
@@ -174,12 +173,31 @@ const PROGRAM_BEGINNER_FULL_BODY = {
 
 const TEMPLATES_BY_ID = Object.fromEntries(DEFAULT_TEMPLATES.map(t => [t.id, t]));
 
+// Накладывает пользовательское переопределение (storage) поверх дефолтного
+// шаблона. Дефолт в коде не мутируется — возвращаем новый объект.
+function applyTemplateOverride(base) {
+  if (!base) return base;
+  if (typeof Storage === 'undefined' || !Storage.getTemplateOverride) return base;
+  const ov = Storage.getTemplateOverride(base.id);
+  if (!ov) return base;
+  const merged = { ...base };
+  if (Array.isArray(ov.items)) merged.items = ov.items;
+  if (typeof ov.name === 'string' && ov.name.trim()) merged.name = ov.name;
+  merged._customized = true;
+  return merged;
+}
+
 function getTemplateById(id) {
-  return TEMPLATES_BY_ID[id] || null;
+  return applyTemplateOverride(TEMPLATES_BY_ID[id] || null);
 }
 
 function getAllTemplates() {
-  return DEFAULT_TEMPLATES.slice();
+  return DEFAULT_TEMPLATES.map(applyTemplateOverride);
+}
+
+// Дефолтный (неотредактированный) шаблон — для сброса/сравнения.
+function getDefaultTemplateById(id) {
+  return TEMPLATES_BY_ID[id] || null;
 }
 
 // Возвращает дневной план для конкретной даты по активной программе
@@ -232,6 +250,7 @@ window.PROGRAMS = {
   ensureDefaultProgram,
   getTemplateById,
   getAllTemplates,
+  getDefaultTemplateById,
   getPlanForDate,
   DEFAULT_TEMPLATES,
   PROGRAM_BEGINNER_FULL_BODY,

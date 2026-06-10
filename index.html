@@ -297,6 +297,53 @@
       <i data-lucide="chevron-right" class="w-4 h-4 text-gray-400"></i>
     </button>
 
+    <!-- v2: Беговой чек-лист (лёгкие пробежки натощак до завтрака) -->
+    <div class="bg-gradient-to-r from-sky-500/15 to-cyan-500/15 rounded-2xl p-4 mb-2 border border-sky-500/30">
+      <div class="flex items-center gap-2 mb-1">
+        <span class="text-lg">🏃</span>
+        <span class="font-semibold text-sm">Бег натощак</span>
+        <span class="text-xs text-gray-400 ml-auto tabular-nums">
+          <span x-text="runningDoneCount()"></span>/<span x-text="runningChecklist.length"></span>
+        </span>
+      </div>
+      <p class="text-[11px] text-gray-400 mb-3">Лёгкие пробежки до завтрака — сжигают гликоген. Отмечай на Apple&nbsp;Watch и здесь. Названия и дни недели можно редактировать — в выбранные дни пробежка попадёт в план до основной тренировки.</p>
+      <div class="space-y-2">
+        <template x-for="(run, i) in runningChecklist" :key="run.id">
+          <div class="rounded-xl p-2 border transition-colors"
+               :class="run.done ? 'bg-emerald-500/10 border-emerald-500/40' : 'bg-gray-800/60 border-gray-700'">
+            <div class="flex items-center gap-2">
+              <button type="button" @click="toggleRun(run.id)"
+                      :title="run.done ? 'Снять отметку' : 'Отметить выполнено'"
+                      class="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-colors active:scale-95"
+                      :class="run.done ? 'bg-emerald-500 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'">
+                <i x-show="run.done" data-lucide="check" class="w-4 h-4"></i>
+                <span x-show="!run.done" class="text-xs font-semibold" x-text="i + 1"></span>
+              </button>
+              <input type="text" :value="run.name"
+                     @change="renameRun(run.id, $event.target.value)"
+                     @keydown.enter="$event.target.blur()"
+                     placeholder="Название пробежки"
+                     class="flex-1 min-w-0 bg-transparent text-sm rounded px-2 py-1 focus:outline-none focus:bg-gray-700/60"
+                     :class="run.done ? 'text-emerald-200 line-through' : 'text-gray-100'" />
+            </div>
+            <!-- Расписание: дни недели, когда пробежка появляется в плане -->
+            <div class="flex gap-1 mt-2 pl-9">
+              <template x-for="dk in WEEKDAY_KEYS" :key="run.id + '-' + dk">
+                <button type="button" @click="toggleRunDay(run.id, dk)"
+                        class="flex-1 h-7 rounded-md text-[11px] font-medium transition-colors active:scale-95"
+                        :class="isRunOnDay(run, dk) ? 'bg-sky-500 text-white' : 'bg-gray-700/70 text-gray-400 hover:bg-gray-600'"
+                        x-text="WEEKDAY_LABELS[dk]"></button>
+              </template>
+            </div>
+          </div>
+        </template>
+      </div>
+      <button type="button" @click="resetRunningChecklist()"
+              class="mt-3 inline-flex items-center gap-1 text-xs text-gray-400 hover:text-gray-200">
+        <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i> Сбросить отметки
+      </button>
+    </div>
+
     <!-- v2: Progress link -->
     <button
       type="button"
@@ -340,6 +387,28 @@
             <i data-lucide="chevron-right" class="w-5 h-5 text-gray-400 shrink-0"></i>
           </template>
         </button>
+
+        <!-- Пробежки на сегодня (по расписанию) — идут ДО основной тренировки -->
+        <template x-for="run in getTodayRuns()" :key="'today-' + run.id">
+          <button type="button" @click="toggleRun(run.id)"
+                  class="w-full flex items-center gap-3 rounded-xl p-3 transition-colors text-left border"
+                  :class="run.done ? 'bg-emerald-500/10 border-emerald-500/40' : 'bg-gray-700/50 hover:bg-gray-700 border-gray-700'">
+            <div class="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 text-xl"
+                 :class="run.done ? 'bg-emerald-500/20' : 'bg-gray-700'">
+              <span>🏃</span>
+            </div>
+            <div class="flex-1 min-w-0">
+              <p class="font-semibold text-sm" x-text="run.name"></p>
+              <p class="text-xs text-gray-400">Бег натощак · до завтрака</p>
+            </div>
+            <template x-if="run.done">
+              <span class="text-emerald-400 text-xl shrink-0">✓</span>
+            </template>
+            <template x-if="!run.done">
+              <span class="w-5 h-5 rounded-full border-2 border-gray-500 shrink-0"></span>
+            </template>
+          </button>
+        </template>
 
         <!-- Тренировка по плану (если рабочий день) -->
         <template x-if="todayPlanV2 && !todayPlanV2.isRest && todayPlanV2.template">
@@ -1314,10 +1383,16 @@
   <template x-if="page === 'template-view'">
   <div class="min-h-screen p-4 pb-24">
     <div class="flex items-center gap-3 mb-6">
-      <button type="button" @click="page = 'programs'" class="p-2 hover:bg-gray-800 rounded-lg">
+      <button type="button" @click="page = 'programs'" class="p-2 hover:bg-gray-800 rounded-lg shrink-0">
         <i data-lucide="chevron-left" class="w-6 h-6"></i>
       </button>
-      <h1 class="text-xl font-bold" x-text="getSelectedTemplate()?.name || 'Шаблон'"></h1>
+      <h1 class="text-xl font-bold flex-1 min-w-0 truncate" x-text="getSelectedTemplate()?.name || 'Шаблон'"></h1>
+      <template x-if="getSelectedTemplate()">
+        <button type="button" @click="toggleTemplateEdit()"
+                class="px-3 py-1.5 rounded-lg text-sm font-medium shrink-0"
+                :class="tplEditMode ? 'bg-emerald-500 text-white' : 'bg-gray-800 text-gray-300 hover:bg-gray-700'"
+                x-text="tplEditMode ? '✓ Готово' : '✏️ Изменить'"></button>
+      </template>
     </div>
 
     <template x-if="!getSelectedTemplate()">
@@ -1342,9 +1417,12 @@
 
     <template x-if="getSelectedTemplate()">
       <div>
-        <div class="bg-gray-800 rounded-xl p-3 mb-4 text-sm text-gray-400">
-          ≈ <span x-text="getSelectedTemplate().estimatedMinutes"></span> мин ·
-          <span x-text="getSelectedTemplate().items.length"></span> упражнений
+        <div class="bg-gray-800 rounded-xl p-3 mb-4 text-sm text-gray-400 flex items-center gap-2">
+          <span>≈ <span x-text="getSelectedTemplate().estimatedMinutes"></span> мин ·
+          <span x-text="getSelectedTemplate().items.length"></span> упражнений</span>
+          <template x-if="isTemplateCustomized()">
+            <span class="ml-auto text-[10px] bg-amber-500/20 text-amber-300 rounded-full px-2 py-0.5 shrink-0">изменён</span>
+          </template>
         </div>
 
         <div class="space-y-2">
@@ -1391,6 +1469,46 @@
                 </template>
               </div>
 
+              <!-- Действия редактирования набора (режим «Изменить») -->
+              <template x-if="tplEditMode">
+                <div class="mt-3 flex gap-2">
+                  <button type="button" @click="startTemplateReplace(idx)"
+                          class="flex-1 bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 rounded-lg py-2 text-sm font-medium active:scale-[0.98] transition-transform">
+                    🔄 Заменить
+                  </button>
+                  <button type="button" @click="removeTemplateItem(idx)"
+                          :disabled="getSelectedTemplate().items.length <= 1"
+                          class="px-3 bg-red-500/20 text-red-300 hover:bg-red-500/30 rounded-lg py-2 text-sm font-medium disabled:opacity-40 active:scale-[0.98] transition-transform"
+                          title="Удалить упражнение">🗑</button>
+                </div>
+              </template>
+
+              <!-- Пикер выбора замены для этого упражнения -->
+              <template x-if="tplEditMode && tplReplaceIndex === idx">
+                <div class="mt-3 bg-gray-900/70 rounded-lg p-3 border border-blue-500/30">
+                  <div class="flex items-center gap-2 mb-2">
+                    <input type="text" x-model="tplReplaceSearch" placeholder="Поиск упражнения для замены…"
+                           class="flex-1 bg-gray-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                    <button type="button" @click="cancelTemplateReplace()" class="text-gray-400 text-sm px-2 hover:text-gray-200">Отмена</button>
+                  </div>
+                  <div class="space-y-1 max-h-64 overflow-y-auto">
+                    <template x-for="cand in getTemplateReplaceCandidates()" :key="'rep-' + cand.id">
+                      <button type="button" @click="applyTemplateReplace(cand.id)"
+                              class="w-full text-left bg-gray-800 hover:bg-gray-700 rounded-lg px-3 py-2 flex items-center justify-between gap-2">
+                        <span class="text-sm truncate">
+                          <span x-text="cand.name"></span>
+                          <span x-show="cand._alt" class="text-[10px] text-emerald-400 ml-1">альт</span>
+                        </span>
+                        <span class="text-[10px] text-gray-500 shrink-0" x-text="cand.equipment"></span>
+                      </button>
+                    </template>
+                    <template x-if="getTemplateReplaceCandidates().length === 0">
+                      <p class="text-xs text-gray-500 px-1 py-2">Ничего не найдено</p>
+                    </template>
+                  </div>
+                </div>
+              </template>
+
               <!-- Inline player под карточкой -->
               <template x-if="isInlineVideoOpen(item.exerciseId) && getExerciseEmbedUrl(getTemplateItemExercise(item))">
                 <div class="mt-3 bg-black rounded-lg overflow-hidden">
@@ -1416,6 +1534,45 @@
             </div>
           </template>
         </div>
+
+        <!-- Footer редактирования: добавить упражнение / сбросить изменения -->
+        <template x-if="tplEditMode">
+          <div class="mt-3 space-y-2">
+            <template x-if="tplReplaceIndex !== -1">
+              <button type="button" @click="startTemplateAdd()"
+                      class="w-full border-2 border-dashed border-gray-600 hover:border-gray-500 rounded-xl py-3 text-sm text-gray-300 flex items-center justify-center gap-2 active:scale-[0.99] transition-transform">
+                ➕ Добавить упражнение
+              </button>
+            </template>
+            <template x-if="tplReplaceIndex === -1">
+              <div class="bg-gray-900/70 rounded-lg p-3 border border-blue-500/30">
+                <div class="flex items-center gap-2 mb-2">
+                  <input type="text" x-model="tplReplaceSearch" placeholder="Поиск упражнения для добавления…"
+                         class="flex-1 bg-gray-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                  <button type="button" @click="cancelTemplateReplace()" class="text-gray-400 text-sm px-2 hover:text-gray-200">Отмена</button>
+                </div>
+                <div class="space-y-1 max-h-64 overflow-y-auto">
+                  <template x-for="cand in getTemplateReplaceCandidates()" :key="'add-' + cand.id">
+                    <button type="button" @click="applyTemplateReplace(cand.id)"
+                            class="w-full text-left bg-gray-800 hover:bg-gray-700 rounded-lg px-3 py-2 flex items-center justify-between gap-2">
+                      <span class="text-sm truncate" x-text="cand.name"></span>
+                      <span class="text-[10px] text-gray-500 shrink-0" x-text="cand.equipment"></span>
+                    </button>
+                  </template>
+                  <template x-if="getTemplateReplaceCandidates().length === 0">
+                    <p class="text-xs text-gray-500 px-1 py-2">Ничего не найдено</p>
+                  </template>
+                </div>
+              </div>
+            </template>
+            <template x-if="isTemplateCustomized()">
+              <button type="button" @click="resetTemplateEdits()"
+                      class="w-full text-xs text-gray-400 hover:text-gray-200 flex items-center justify-center gap-1 py-2">
+                ↺ Сбросить к исходному набору
+              </button>
+            </template>
+          </div>
+        </template>
 
         <button type="button"
                 @click="openEnergyPre(getSelectedTemplate().id)"

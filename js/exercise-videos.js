@@ -91,10 +91,9 @@ const EXERCISE_VIDEO_URLS = {
   'calf-stretch': 'https://www.youtube.com/watch?v=e01Nmo5eQgs',
   'child-pose': 'https://www.youtube.com/watch?v=ESy8ujdrZrk',
 
-  // GLUTES + PELVIC FLOOR
+  // GLUTES
   'glute-bridge': 'https://www.youtube.com/watch?v=8bbE64NuDTU',
   'single-leg-glute-bridge': 'https://www.youtube.com/watch?v=VUl8R0kn6v4',
-  'kegel': 'https://www.youtube.com/watch?v=cwBYel8KixA',
   'bird-dog': 'https://www.youtube.com/watch?v=ZdAHe9_HeEw',
   'donkey-kick': 'https://www.youtube.com/watch?v=KgghFOMKnkE',
   'frog-pump': 'https://www.youtube.com/watch?v=rgljhH1X4vc',

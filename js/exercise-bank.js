@@ -1163,10 +1163,9 @@ const EXERCISE_BANK = [
     videoSearchQuery: 'childs pose yoga tutorial',
   },
 
-  // ============ ЯГОДИЦЫ + ТАЗОВОЕ ДНО (без веса) ============
-  // Рекомендованы для улучшения кровотока в области таза и здоровья мужчин.
-  // Kegels — прямые исследования по ED. Glute bridge / bird dog / donkey kick /
-  // frog pump — активация ягодиц и тазовых мышц без оборудования.
+  // ============ ЯГОДИЦЫ (без веса) ============
+  // Glute bridge / bird dog / donkey kick / frog pump — активация ягодиц
+  // без оборудования. Подходят для зарядки и коротких блоков.
   {
     id: 'glute-bridge',
     name: 'Ягодичный мост (без веса)',
@@ -1197,21 +1196,6 @@ const EXERCISE_BANK = [
     tags: ['glutes', 'pelvic', 'morning'],
     videoUrl: '',
     videoSearchQuery: 'single leg glute bridge tutorial',
-  },
-  {
-    id: 'kegel',
-    name: 'Упражнения Кегеля (тазовое дно)',
-    muscles: ['core'],
-    equipment: 'bodyweight',
-    type: 'time_only',
-    shoulderFriendly: true,
-    alts: [],
-    stepTimeSec: 10,
-    defaultRest: 15,
-    level: 'beginner',
-    tags: ['pelvic', 'morning'],
-    videoUrl: '',
-    videoSearchQuery: 'kegel exercises men erectile dysfunction tutorial',
   },
   {
     id: 'bird-dog',

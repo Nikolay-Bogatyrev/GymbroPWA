@@ -29,7 +29,21 @@ const KEYS = {
   prs: 'gym_prs',
   stats: 'gym_stats',
   exerciseOverrides: 'gym_exercise_overrides',
+  runningChecklist: 'gym_running_checklist',
+  templateOverrides: 'gym_template_overrides',
 };
+
+// Лёгкие пробежки натощак (до завтрака — сжигают гликоген).
+// Чек-лист с расписанием: названия и дни недели редактируются пользователем,
+// отметки — для Apple Watch + приложения. days — массив ключей дней недели
+// ('mon'|'tue'|'wed'|'thu'|'fri'|'sat'|'sun'), в которые пробежка показывается
+// в плане ДО основной тренировки.
+const DEFAULT_RUNNING_CHECKLIST = [
+  { id: 'run-1', name: 'Лёгкая трусца 20 мин (Zone 2)', done: false, days: ['mon'] },
+  { id: 'run-2', name: 'Лёгкая трусца 30 мин (Zone 2)', done: false, days: ['wed'] },
+  { id: 'run-3', name: 'Восстановительный бег 25 мин',   done: false, days: ['fri'] },
+  { id: 'run-4', name: 'Интервальная трусца 6×1 мин',    done: false, days: ['sat'] },
+];
 
 const DEFAULT_SETTINGS = {
   sound: true,
@@ -394,6 +408,51 @@ function getExerciseMerged(exerciseId) {
   return ov ? { ...base, ...ov } : base;
 }
 
+// ============ RUNNING CHECKLIST (лёгкие пробежки натощак) ============
+
+function getRunningChecklist() {
+  const saved = safeGet(KEYS.runningChecklist, null);
+  if (Array.isArray(saved) && saved.length) {
+    // Нормализуем: гарантируем массив days (для записей, сохранённых до расписания)
+    return saved.map(r => ({ ...r, days: Array.isArray(r.days) ? r.days : [] }));
+  }
+  // Первый запуск — клонируем дефолты, чтобы не мутировать константу
+  return DEFAULT_RUNNING_CHECKLIST.map(r => ({ ...r, days: r.days.slice() }));
+}
+
+function saveRunningChecklist(list) {
+  safeSet(KEYS.runningChecklist, list);
+}
+
+// ============ TEMPLATE OVERRIDES (пользовательское редактирование шаблонов) ============
+// Дефолтные шаблоны живут в коде (programs.js → DEFAULT_TEMPLATES). Когда
+// пользователь правит набор упражнений (замена/удаление/добавление), мы
+// сохраняем переопределение по id шаблона: { items: [...] }. programs.js
+// накладывает override поверх дефолта при чтении. Сброс — clearTemplateOverride.
+
+function getTemplateOverrides() {
+  return safeGet(KEYS.templateOverrides, {});
+}
+
+function getTemplateOverride(templateId) {
+  return getTemplateOverrides()[templateId] || null;
+}
+
+function setTemplateOverride(templateId, patch) {
+  const all = getTemplateOverrides();
+  all[templateId] = { ...(all[templateId] || {}), ...patch };
+  safeSet(KEYS.templateOverrides, all);
+  return all[templateId];
+}
+
+function clearTemplateOverride(templateId) {
+  const all = getTemplateOverrides();
+  if (all[templateId]) {
+    delete all[templateId];
+    safeSet(KEYS.templateOverrides, all);
+  }
+}
+
 // ============ ROOT ============
 
 function init() {
@@ -426,6 +485,10 @@ const Storage = {
   getProfile, saveProfile,
   // exercise overrides
   getExerciseOverrides, setExerciseOverride, getExerciseMerged,
+  // running checklist
+  getRunningChecklist, saveRunningChecklist,
+  // template overrides (редактирование шаблонов)
+  getTemplateOverrides, getTemplateOverride, setTemplateOverride, clearTemplateOverride,
   // export/import
   exportAll, importAll, getAppKeys,
 };
