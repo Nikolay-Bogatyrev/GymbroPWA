@@ -703,7 +703,7 @@
       const t = (window.PROGRAMS && PROGRAMS.getTemplateById) ? PROGRAMS.getTemplateById(templateId) : null;
       const isPrehabTpl = t && (t.isPrehab || templateId === (window.PROGRAMS && PROGRAMS.PREHAB_TEMPLATE_ID));
       const isMorningTpl = t && (t.isMorning || templateId === (window.PROGRAMS && PROGRAMS.MORNING_TEMPLATE_ID));
-      this.includePrehab = !isPrehabTpl && !isMorningTpl;
+      this.includePrehab = !isPrehabTpl && !isMorningTpl && !(t && t.noPrehab);
       this.energyAdjustments = [];
       this.recomputeEnergyPreview();
       this.page = 'energy-pre';

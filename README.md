@@ -51,6 +51,10 @@ gymbroPWA/
 
 Открой `js/data.js` и измени объект `WORKOUT_TEMPLATES`.
 
+## 🖼 Кадры упражнений
+
+`images/exercises/<id>/` — кадры из [Free Exercise DB](https://github.com/yuhonas/free-exercise-db) (public domain). Список упражнений с кадрами — в `js/exercise-frames.js`.
+
 ## 📚 Документация
 
 - [FEATURES.md](docs/FEATURES.md) — список фич и задачи

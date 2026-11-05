@@ -145,14 +145,100 @@ const TEMPLATE_GLUTE_PELVIC = {
   ],
 };
 
+// ============ ВЕРХ/НИЗ НА 4 ДНЯ (пн/вт/чт/пт, 9:00–10:00) ============
+// Цель: рост мышц плюс кор, осанка и ягодицы; после тренировки — рабочий день.
+// В estimatedMinutes входит разминка 10 минут (кардио и лёгкие подходы) до старта.
+// Prehab выключен: тяга к лицу и разведения уже в программе, иначе не уложиться в час.
+const TEMPLATE_UL_LOWER_A = {
+  id: 'tpl-ul-lower-a',
+  name: 'Низ A — ноги, ягодицы, кор',
+  estimatedMinutes: 56,
+  noPrehab: true,
+  items: [
+    { exerciseId: 'leg-press',     sets: 4, reps: 10, priority: 'A', supersetGroup: null, restSec: 120, weight: 60 },
+    { exerciseId: 'hip-thrust',    sets: 4, reps: 10, priority: 'A', supersetGroup: null, restSec: 120, weight: 40 },
+    { exerciseId: 'leg-curl',      sets: 3, reps: 12, priority: 'B', supersetGroup: null, restSec: 75,  weight: 25 },
+    { exerciseId: 'hip-abduction', sets: 3, reps: 15, priority: 'B', supersetGroup: null, restSec: 60,  weight: 30 },
+    { exerciseId: 'dead-bug',      sets: 3, reps: 10, priority: 'B', supersetGroup: null, restSec: 40 },
+    { exerciseId: 'pallof-press',  sets: 3, reps: 12, priority: 'C', supersetGroup: null, restSec: 40,  weight: 7.5 },
+  ],
+};
+
+const TEMPLATE_UL_UPPER_A = {
+  id: 'tpl-ul-upper-a',
+  name: 'Верх A — спина, грудь, плечи',
+  estimatedMinutes: 58,
+  noPrehab: true,
+  items: [
+    { exerciseId: 'lat-pulldown-wide',      sets: 4, reps: 10, priority: 'A', supersetGroup: null, restSec: 105, weight: 40 },
+    { exerciseId: 'dumbbell-incline-press', sets: 4, reps: 10, priority: 'A', supersetGroup: null, restSec: 105, weight: 12 },
+    { exerciseId: 'seated-cable-row',       sets: 4, reps: 12, priority: 'A', supersetGroup: null, restSec: 90,  weight: 35 },
+    { exerciseId: 'lateral-raise',          sets: 3, reps: 15, priority: 'B', supersetGroup: null, restSec: 60,  weight: 6 },
+    { exerciseId: 'face-pull',              sets: 3, reps: 15, priority: 'B', supersetGroup: null, restSec: 60,  weight: 12 },
+    { exerciseId: 'dumbbell-curl',          sets: 2, reps: 12, priority: 'C', supersetGroup: null, restSec: 45,  weight: 10 },
+    { exerciseId: 'cable-triceps-pushdown', sets: 2, reps: 12, priority: 'C', supersetGroup: null, restSec: 45,  weight: 20 },
+  ],
+};
+
+const TEMPLATE_UL_LOWER_B = {
+  id: 'tpl-ul-lower-b',
+  name: 'Низ B — ягодицы, задняя цепь, кор',
+  estimatedMinutes: 54,
+  noPrehab: true,
+  items: [
+    { exerciseId: 'rdl-dumbbell',          sets: 4, reps: 10, priority: 'A', supersetGroup: null, restSec: 120, weight: 16 },
+    // Односторонние идут в потоке на каждую сторону, поэтому отдых короче
+    { exerciseId: 'bulgarian-split-squat', sets: 3, reps: 10, priority: 'A', supersetGroup: null, restSec: 45,  weight: 8 },
+    { exerciseId: 'hyperextension',        sets: 3, reps: 12, priority: 'B', supersetGroup: null, restSec: 60 },
+    { exerciseId: 'leg-extension',         sets: 3, reps: 15, priority: 'C', supersetGroup: null, restSec: 60,  weight: 25 },
+    { exerciseId: 'side-plank-hip-lift',   sets: 3, reps: 10, priority: 'B', supersetGroup: null, restSec: 20 },
+    { exerciseId: 'bird-dog',              sets: 2, reps: 8,  priority: 'C', supersetGroup: null, restSec: 20 },
+  ],
+};
+
+const TEMPLATE_UL_UPPER_B = {
+  id: 'tpl-ul-upper-b',
+  name: 'Верх B — спина, грудь, плечи',
+  estimatedMinutes: 59,
+  noPrehab: true,
+  items: [
+    { exerciseId: 'dumbbell-row',                    sets: 4, reps: 10, priority: 'A', supersetGroup: null, restSec: 45,  weight: 14 },
+    { exerciseId: 'dumbbell-bench-press',            sets: 4, reps: 10, priority: 'A', supersetGroup: null, restSec: 105, weight: 14 },
+    { exerciseId: 'assisted-pullup',                 sets: 3, reps: 10, priority: 'A', supersetGroup: null, restSec: 105 },
+    { exerciseId: 'dumbbell-shoulder-press-neutral', sets: 3, reps: 10, priority: 'B', supersetGroup: null, restSec: 75,  weight: 10 },
+    { exerciseId: 'rear-delt-fly',                   sets: 3, reps: 15, priority: 'B', supersetGroup: null, restSec: 60,  weight: 5 },
+    { exerciseId: 'hammer-curl',                     sets: 2, reps: 12, priority: 'C', supersetGroup: null, restSec: 45,  weight: 8 },
+    { exerciseId: 'skullcrusher',                    sets: 2, reps: 12, priority: 'C', supersetGroup: null, restSec: 45,  weight: 15 },
+  ],
+};
+
 const DEFAULT_TEMPLATES = [
   TEMPLATE_BEGINNER_FB_A,
   TEMPLATE_BEGINNER_FB_B,
   TEMPLATE_BEGINNER_FB_C,
+  TEMPLATE_UL_LOWER_A,
+  TEMPLATE_UL_UPPER_A,
+  TEMPLATE_UL_LOWER_B,
+  TEMPLATE_UL_UPPER_B,
   PREHAB_TEMPLATE,
   TEMPLATE_DAILY_MORNING,
   TEMPLATE_GLUTE_PELVIC,
 ];
+
+const PROGRAM_UPPER_LOWER_4 = {
+  id: 'prog-upper-lower-4',
+  name: 'Верх/низ на 4 дня (пн/вт/чт/пт)',
+  level: 'intermediate',
+  week: {
+    mon: 'tpl-ul-lower-a',
+    tue: 'tpl-ul-upper-a',
+    wed: null,
+    thu: 'tpl-ul-lower-b',
+    fri: 'tpl-ul-upper-b',
+    sat: null,
+    sun: null,
+  },
+};
 
 const PROGRAM_BEGINNER_FULL_BODY = {
   id: 'prog-beginner-fullbody',
@@ -240,6 +326,12 @@ function ensureDefaultProgram() {
   if (!Storage.getActiveProgramId()) {
     Storage.setActiveProgramId(PROGRAM_BEGINNER_FULL_BODY.id);
   }
+  // Новая программа становится активной один раз, при первом появлении.
+  // Дальше выбор и правки сетки остаются за пользователем.
+  if (!Storage.getPrograms().some(p => p.id === PROGRAM_UPPER_LOWER_4.id)) {
+    Storage.upsertProgram(PROGRAM_UPPER_LOWER_4);
+    Storage.setActiveProgramId(PROGRAM_UPPER_LOWER_4.id);
+  }
 }
 
 // id шаблона prehab — для автоматической вставки перед основной тренировкой
@@ -254,6 +346,7 @@ window.PROGRAMS = {
   getPlanForDate,
   DEFAULT_TEMPLATES,
   PROGRAM_BEGINNER_FULL_BODY,
+  PROGRAM_UPPER_LOWER_4,
   PREHAB_TEMPLATE,
   PREHAB_TEMPLATE_ID,
   MORNING_TEMPLATE_ID,

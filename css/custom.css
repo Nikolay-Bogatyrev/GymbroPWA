@@ -152,3 +152,33 @@ button:active {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* Кадры техники: два снимка плавно сменяют друг друга */
+.exercise-frames {
+  position: relative;
+  aspect-ratio: 3 / 2;
+  overflow: hidden;
+  border-radius: 0.5rem;
+  background: #000;
+}
+
+.exercise-frames img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.exercise-frames img + img {
+  animation: exercise-frame-swap 1.6s ease-in-out infinite alternate;
+}
+
+@keyframes exercise-frame-swap {
+  0%, 30% { opacity: 0; }
+  70%, 100% { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .exercise-frames img + img { animation: none; }
+}
